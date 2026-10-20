@@ -1,0 +1,5 @@
+# Toute URL qui n'est ni un fichier ni un dossier est envoyée au routeur (index.php?url=...)
+RewriteEngine On
+RewriteCond %{REQUEST_FILENAME} !-f
+RewriteCond %{REQUEST_FILENAME} !-d
+RewriteRule ^(.*)$ index.php?url=$1 [QSA,L]
