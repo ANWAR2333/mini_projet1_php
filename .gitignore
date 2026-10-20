@@ -1,0 +1,11 @@
+# Photos téléversées par les clients (on garde le dossier et sa protection)
+uploads/*
+!uploads/.gitkeep
+!uploads/.htaccess
+
+# Éditeurs / système
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
+*.log
