@@ -1,0 +1,101 @@
+/* svp touche pas cette fichier */
+:root{
+  --marine:#15136B;      /* barre latérale */
+  --bleu:#0A3BEB;        /* boutons */
+  --bleu-clair:#A8B4FF;  /* page active */
+  --carte:#DCE8FB;       /* cartes */
+  --cercle:#5B6CF5;      /* cercle de l'en-tête */
+  --bordure:#D5DBE8;     /* champs */
+  --filet:#8B93AA;       /* séparateurs de tableau */
+  --texte:#14163A;
+}
+*{box-sizing:border-box}
+body{margin:0;font-family:"Space Mono",ui-monospace,Consolas,monospace;color:var(--texte);background:#fff;font-size:15px}
+h1,h2,h3{margin:0;font-weight:700}
+a{color:var(--bleu)}
+img{max-width:100%}
+
+/* ---------- Structure ---------- */
+.page{display:flex;min-height:100vh}
+.sidebar{width:250px;flex-shrink:0;background:var(--marine);color:#fff;display:flex;flex-direction:column;gap:1.5rem;padding:1.25rem 1rem;position:sticky;top:0;height:100vh}
+.sidebar .logo img{height:40px;display:block}
+.sidebar nav{display:flex;flex-direction:column;gap:.6rem}
+.menu-btn{display:flex;align-items:center;gap:.6rem;background:var(--bleu);color:#fff;text-decoration:none;padding:.75rem 1rem;border-radius:10px;font-size:.9rem}
+.menu-btn:hover{filter:brightness(1.15)}
+.menu-btn.actif{background:var(--bleu-clair);color:#000;font-weight:700}
+.menu-btn svg,.deconnexion svg{width:18px;height:18px}
+.deconnexion{margin-top:auto;display:flex;align-items:center;gap:.5rem;color:#fff;text-decoration:none;font-size:.9rem;padding:.5rem}
+.contenu{flex:1;min-width:0;padding:1.5rem 2rem}
+.plein{flex:1;min-width:0}
+
+/* ---------- Cartes et en-têtes ---------- */
+.carte{background:var(--carte);border-radius:30px;padding:1.5rem 2rem;margin-bottom:1.25rem}
+.carte-titre{border-radius:36px;display:flex;align-items:center;justify-content:space-between;gap:1rem}
+.carte-titre h1{font-size:1.5rem;display:flex;align-items:center;gap:.6rem}
+.sous-titre{margin:.4rem 0 0;font-style:italic;font-size:.85rem}
+.cercle{width:115px;height:115px;border-radius:50%;background:var(--cercle);color:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;font-weight:700;flex-shrink:0}
+.cercle small{font-weight:400;font-style:italic;font-size:.7rem}
+.grille-2{display:grid;grid-template-columns:1fr 1fr;gap:1.25rem}
+
+/* ---------- Boutons ---------- */
+.btn-principal{display:inline-block;background:var(--bleu);color:#fff;font:inherit;font-weight:700;border:0;border-radius:8px;padding:.7rem 1.4rem;cursor:pointer;text-decoration:none}
+.btn-principal:hover{filter:brightness(1.15)}
+.btn-secondaire{display:inline-block;background:#fff;color:var(--bleu);font:inherit;border:1px solid var(--bleu);border-radius:8px;padding:.6rem 1.2rem;cursor:pointer;text-decoration:none}
+
+/* ---------- Formulaires ---------- */
+.formulaire label{display:block;margin:1rem 0 .35rem;font-weight:700;font-size:.85rem}
+.champ,.formulaire input:not([type=checkbox]):not([type=radio]):not([type=file]),.formulaire select,.formulaire textarea{
+  width:100%;background:#fff;border:1px solid var(--bordure);border-radius:6px;padding:.6rem .75rem;font:inherit;color:var(--texte)}
+.champ::placeholder,.formulaire input::placeholder,.formulaire textarea::placeholder{color:#9aa1b5}
+.erreur-champ{color:#E02424;font-size:.8rem;margin-top:.25rem}
+
+/* ---------- Messages (bande en haut de la zone de contenu) ---------- */
+.bande{padding:.8rem 1.2rem;border-radius:8px;margin-bottom:1rem;font-weight:700;font-size:.9rem}
+.bande-succes{background:#CDEFC9;color:#2E7D32}
+.bande-erreur{background:#FFC2C2;color:#E02424}
+
+/* ---------- Badges ---------- */
+.badge{display:inline-block;padding:.2rem .7rem;border-radius:999px;font-size:.75rem;font-weight:700}
+.badge-rouge{background:#FFC2C2;color:#E02424}   /* Impayée, index inférieur */
+.badge-jaune{background:#F2E8B0;color:#8A6D00}   /* En vérification, dépasse le seuil */
+.badge-vert{background:#CDEFC9;color:#2E7D32}    /* Payée, Normale */
+
+/* ---------- Tableaux ---------- */
+.tableau{width:100%;border-collapse:collapse}
+.tableau th{text-align:left;font-weight:700;padding:.7rem .6rem;border-bottom:1px solid var(--filet)}
+.tableau td{padding:.8rem .6rem;border-bottom:1px solid var(--filet)}
+.tableau tr:last-child td{border-bottom:0}
+.tableau .actions{display:flex;gap:.6rem;align-items:center}
+.tableau .actions a,.tableau .actions button{color:var(--texte);background:none;border:0;padding:0;cursor:pointer;display:inline-flex}
+.tableau svg{width:18px;height:18px}
+.scroll-x{overflow-x:auto}
+
+/* ---------- Connexion (Écran 1) ---------- */
+body.public{background:#fff}
+.auth-cadre{display:flex;min-height:100vh;margin:0;background:var(--carte)}
+.auth-hero{flex:1 1 42%;background:#15279C;color:#fff;margin:2rem 0 2rem 2rem;border-radius:30px;padding:2rem 2.2rem;display:flex;flex-direction:column}
+.auth-logo{height:42px;align-self:flex-start;margin-bottom:2.5rem}
+.auth-hero h1{font-size:2.1rem;line-height:1.15;margin-bottom:auto}
+.auth-hero ul{padding-left:1.1rem;opacity:.8;font-size:.8rem;line-height:1.8;margin:2rem 0 0}
+.auth-zone{flex:1 1 58%;display:flex;align-items:center;justify-content:center;padding:2rem}
+.auth-carte{background:#fff;border-radius:20px;padding:2rem 2.2rem;width:100%;max-width:460px}
+.auth-carte h2{text-align:center;font-size:1.3rem;margin-bottom:.5rem}
+.auth-carte label{display:block;margin:1.1rem 0 .35rem;font-weight:700;font-size:.85rem}
+.auth-carte .champ{width:100%}
+.auth-carte .btn-principal{display:block;margin:1.6rem auto 0;min-width:190px}
+body.public .bande{position:fixed;top:1rem;left:50%;transform:translateX(-50%);z-index:5;min-width:280px;text-align:center}
+
+/* ---------- Petits écrans ---------- */
+@media (max-width:860px){
+  .page{flex-direction:column}
+  .sidebar{width:100%;height:auto;position:static;flex-direction:row;flex-wrap:wrap;align-items:center}
+  .sidebar nav{flex-direction:row;flex-wrap:wrap}
+  .deconnexion{margin:0 0 0 auto}
+  .contenu{padding:1rem}
+  .grille-2{grid-template-columns:1fr}
+  .auth-cadre{flex-direction:column}
+  .auth-hero{margin:1rem;padding:1.4rem}
+  .auth-hero h1{font-size:1.5rem;margin-bottom:1rem}
+  .carte-titre{flex-direction:column;align-items:flex-start}
+}
+.aide{font-size:.75rem;color:#5a6280;margin:1rem 0 0;line-height:1.6}
