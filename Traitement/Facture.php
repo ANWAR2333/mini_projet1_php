@@ -238,7 +238,14 @@ function facturePdf(int $id): void
         $chemin = __DIR__ . '/../' . ($f[$cle] ?? '');
         if (!empty($f[$cle]) && is_file($chemin)) {
             try {
-                $pdf->Image($chemin, $x, $y, 0, 50);
+                [$lw, $lh] = getimagesize($chemin);
+                $w = 85;
+                $h = $w * $lh / $lw;
+                if ($h > 50) {
+                    $h = 50;
+                    $w = $h * $lw / $lh;
+                }
+                $pdf->Image($chemin, $x, $y, $w, $h);
                 $pdf->SetXY($x, $y + 52);
                 $pdf->SetFont('Helvetica', '', 9);
                 $pdf->Cell(85, 5, $t($legende), 0, 0, 'L');
