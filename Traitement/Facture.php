@@ -132,3 +132,28 @@ function factureOne(int $id): void
         'facture' => $facture,
     ]);
 }
+
+//  Factures côté fournisseur 
+
+/** Route Facture/admin : toutes les factures, filtre ?statut=impayee|payee. */
+function factureAdmin(): void
+{
+    verifierRole('fournisseur');
+
+    $statut = $_GET['statut'] ?? null;
+    if (!in_array($statut, ['impayee', 'payee'], true)) {
+        $statut = null;
+    }
+
+    $totalImpaye = 0.0;
+    foreach (bdFactureAll('impayee') as $f) {
+        $totalImpaye += (float) $f['montant_ttc'];
+    }
+
+    afficherVue('facture/index_fournisseur.php', [
+        'titre'       => 'Factures',
+        'factures'    => bdFactureAll($statut),
+        'statut'      => $statut,
+        'totalImpaye' => $totalImpaye,
+    ]);
+}
