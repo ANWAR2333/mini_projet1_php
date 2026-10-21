@@ -66,3 +66,33 @@ function bdFactureOne(int $id): array
     $row = $st->fetch();
     return $row ?: [];
 }
+
+// Chaimaa : factures côté fournisseur
+
+/** Toutes les factures avec le nom du client. $statut = null (toutes) | 'impayee' | 'payee'. */
+function bdFactureAll(?string $statut = null): array
+{
+    $sql = "SELECT f.id, f.numero, f.date_facture, f.periode, f.montant_ttc, f.statut,
+                   c.nom, c.prenom
+            FROM facture f
+            JOIN client c ON c.id = f.id_client";
+    $params = [];
+    if ($statut !== null) {
+        $sql .= " WHERE f.statut = :statut";
+        $params[':statut'] = $statut;
+    }
+    $sql .= " ORDER BY f.date_facture DESC, f.id DESC";
+
+    $st = getConnexion()->prepare($sql);
+    $st->execute($params);
+    return $st->fetchAll();
+}
+
+/** Change le statut d'une facture. Renvoie false si elle avait déjà ce statut. */
+function bdFactureSetStatut(int $id, string $statut): bool
+{
+    $st = getConnexion()->prepare(
+        "UPDATE facture SET statut = :statut WHERE id = :id AND statut <> :statut2");
+    $st->execute([':statut' => $statut, ':statut2' => $statut, ':id' => $id]);
+    return $st->rowCount() === 1;
+}
