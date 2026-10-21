@@ -132,3 +132,122 @@ function factureOne(int $id): void
         'facture' => $facture,
     ]);
 }
+
+//  Factures côté fournisseur 
+
+/** Route Facture/admin : toutes les factures, filtre ?statut=impayee|payee. */
+function factureAdmin(): void
+{
+    verifierRole('fournisseur');
+
+    $statut = $_GET['statut'] ?? null;
+    if (!in_array($statut, ['impayee', 'payee'], true)) {
+        $statut = null;
+    }
+
+    $totalImpaye = 0.0;
+    foreach (bdFactureAll('impayee') as $f) {
+        $totalImpaye += (float) $f['montant_ttc'];
+    }
+
+    afficherVue('facture/index_fournisseur.php', [
+        'titre'       => 'Factures',
+        'factures'    => bdFactureAll($statut),
+        'statut'      => $statut,
+        'totalImpaye' => $totalImpaye,
+    ]);
+}
+
+
+/** Route Facture/pdf/{id} : PDF d'une facture. Un client ne télécharge que les siennes. */
+function facturePdf(int $id): void
+{
+    verifierRole('connecte');
+    $f = bdFactureOne($id);
+    if (!$f || ($_SESSION['role'] === 'client' && (int) $f['id_client'] !== (int) $_SESSION['id'])) {
+        afficher404();
+    }
+
+    $f['montant_eau']  = calculerMontant((float) $f['conso_eau'], 'eau');
+    $f['montant_elec'] = calculerMontant((float) $f['conso_elec'], 'elec');
+
+    require_once __DIR__ . '/../lib/fpdf/fpdf.php';
+
+    // FPDF ne gère pas l'UTF-8 : on convertit les accents.
+    $t        = fn($x) => iconv('UTF-8', 'windows-1252//TRANSLIT', (string) $x);
+    $dh       = fn($x) => number_format((float) $x, 2, ',', ' ') . ' DH';
+    $num      = fn($x) => rtrim(rtrim(number_format((float) $x, 2, ',', ''), '0'), ',');
+    $moisNoms = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
+    $debut    = sprintf('01/%02d/%04d', $f['mois'], $f['annee']);
+    $fin      = date('t/m/Y', mktime(0, 0, 0, (int) $f['mois'], 1, (int) $f['annee']));
+    $payee    = $f['statut'] === 'payee';
+
+    $pdf = new FPDF();
+    $pdf->SetMargins(15, 15);
+    $pdf->AddPage();
+
+    // En-tête : logo à gauche, numéro, date et statut à droite
+    $pdf->Image(__DIR__ . '/../assets/img/logo.png', 15, 12, 50);
+    $pdf->SetXY(100, 14);
+    $pdf->SetFont('Helvetica', 'B', 16);
+    $pdf->Cell(95, 8, $t('Facture N° ' . $f['numero']), 0, 2, 'R');
+    $pdf->SetFont('Helvetica', '', 10);
+    $pdf->Cell(95, 6, $t('Date : ' . date('d/m/Y', strtotime($f['date_facture']))), 0, 2, 'R');
+    $pdf->SetFont('Helvetica', 'B', 10);
+    $pdf->SetTextColor($payee ? 22 : 224, $payee ? 130 : 36, $payee ? 60 : 36);
+    $pdf->Cell(95, 6, $t($payee ? 'Payée' : 'Impayée'), 0, 1, 'R');
+    $pdf->SetTextColor(20, 22, 58);
+    $pdf->Ln(10);
+
+    // Client et période
+    $pdf->SetFont('Helvetica', 'B', 12);
+    $pdf->Cell(0, 8, $t('Facture de ' . $moisNoms[(int) $f['mois'] - 1] . ' ' . (int) $f['annee']), 0, 1);
+    $pdf->SetFont('Helvetica', '', 10);
+    $pdf->Cell(0, 6, $t('Période : ' . $debut . ' – ' . $fin), 0, 1);
+    $pdf->Cell(0, 6, $t('Client : ' . $f['prenom'] . ' ' . $f['nom']), 0, 1);
+    $pdf->Cell(0, 6, $t('Adresse : ' . ($f['adresse'] ?? '')), 0, 1);
+    $pdf->Cell(0, 6, $t('Index relevés : eau ' . $num($f['index_eau']) . ' m³ · électricité ' . $num($f['index_elec']) . ' kWh'), 0, 1);
+    $pdf->Ln(6);
+
+    // Tableau des montants
+    $pdf->SetFillColor(220, 232, 251);
+    $pdf->SetFont('Helvetica', 'B', 10);
+    $pdf->Cell(70, 9, $t('Service'), 'B', 0, 'L', true);
+    $pdf->Cell(55, 9, $t('Consommation'), 'B', 0, 'R', true);
+    $pdf->Cell(55, 9, $t('Montant HT'), 'B', 1, 'R', true);
+    $pdf->SetFont('Helvetica', '', 10);
+    $pdf->Cell(70, 8, $t('Eau'), 'B');
+    $pdf->Cell(55, 8, $t($num($f['conso_eau']) . ' m³'), 'B', 0, 'R');
+    $pdf->Cell(55, 8, $t($dh($f['montant_eau'])), 'B', 1, 'R');
+    $pdf->Cell(70, 8, $t('Électricité'), 'B');
+    $pdf->Cell(55, 8, $t($num($f['conso_elec']) . ' kWh'), 'B', 0, 'R');
+    $pdf->Cell(55, 8, $t($dh($f['montant_elec'])), 'B', 1, 'R');
+
+    $pdf->Ln(4);
+    $pdf->Cell(125, 7, $t('Montant HT'), 0, 0, 'R');
+    $pdf->Cell(55, 7, $t($dh($f['montant_ht'])), 0, 1, 'R');
+    $pdf->Cell(125, 7, $t('TVA 18 %'), 0, 0, 'R');
+    $pdf->Cell(55, 7, $t($dh($f['tva'])), 0, 1, 'R');
+    $pdf->SetFont('Helvetica', 'B', 12);
+    $pdf->Cell(125, 10, $t('Total TTC'), 'T', 0, 'R');
+    $pdf->Cell(55, 10, $t($dh($f['montant_ttc'])), 'T', 1, 'R');
+
+    // Photos des compteurs (si les fichiers existent)
+    $y = $pdf->GetY() + 10;
+    foreach (['photo_eau' => [15, 'Compteur d\'eau'], 'photo_elec' => [110, 'Compteur d\'électricité']] as $cle => [$x, $legende]) {
+        $chemin = __DIR__ . '/../' . ($f[$cle] ?? '');
+        if (!empty($f[$cle]) && is_file($chemin)) {
+            try {
+                $pdf->Image($chemin, $x, $y, 0, 50);
+                $pdf->SetXY($x, $y + 52);
+                $pdf->SetFont('Helvetica', '', 9);
+                $pdf->Cell(85, 5, $t($legende), 0, 0, 'L');
+            } catch (Exception $e) {
+                // Image illisible par FPDF : on l'ignore, le reste du PDF reste valable.
+            }
+        }
+    }
+
+    $pdf->Output('D', 'Facture_' . $f['numero'] . '.pdf');
+    exit;
+}
