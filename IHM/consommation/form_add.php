@@ -1,7 +1,7 @@
 <?php
 
 $e    = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
-$base = defined('URL_BASE') ? URL_BASE : '';
+$base = BASE_URL;
 $nb   = fn($v) => number_format((float) $v, 2, ',', ' ');
 $moisCourt = mb_substr($nomMois, 0, 3, 'UTF-8') . '.';
 
@@ -14,6 +14,7 @@ $compteurs = [
     <div class="carte-titre-texte">
         <h1><i data-lucide="gauge"></i> Ma consommation</h1>
         <p class="sous-titre">Saisie ouverte du 18 au <?= (int) $dernierJour ?> <?= $e(mb_strtolower($nomMois, 'UTF-8')) ?></p>
+        <p><a class="btn-secondaire" href="<?= $e($base) ?>Consommation/all">Voir mes saisies</a></p>
     </div>
     <div class="cercle"><span class="cercle-valeur"><?= $e($moisCourt) ?></span><small class="cercle-legende"><?= (int) $annee ?></small></div>
 </div>
