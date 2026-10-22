@@ -2,7 +2,7 @@
 
 $e  = fn($v) => htmlspecialchars((string) $v, ENT_QUOTES, 'UTF-8');
 $nb = fn($v) => number_format((float) $v, 2, ',', ' ');
-$base = defined('URL_BASE') ? URL_BASE : '';
+$base = BASE_URL;
 ?>
 <div class="carte-titre">
     <div class="carte-titre-texte">
