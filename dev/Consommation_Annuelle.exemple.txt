@@ -1,0 +1,5 @@
+ID_Contrat;ID_Agent;ConsommationEau;ConsommationElect;Annee;Date_Saisie
+1;1;14;110;2026;2026-12-20
+2;1;30;130;2026;2026-12-20
+3;1;8;95;2026;20/12/2026
+99;1;10;10;2026;2026-12-20

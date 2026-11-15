@@ -49,7 +49,7 @@ CREATE TABLE `anomalie` (
   `id` int(11) NOT NULL,
   `id_consommation` int(11) NOT NULL,
   `service` enum('eau','electricite') NOT NULL,
-  `type` enum('index_inferieur','depasse_seuil') NOT NULL,
+  `type` enum('index_inferieur','consommation_nulle','depasse_seuil') NOT NULL,
   `index_precedent` decimal(10,2) NOT NULL,
   `index_saisi` decimal(10,2) NOT NULL,
   `index_corrige` decimal(10,2) DEFAULT NULL,
@@ -422,6 +422,98 @@ ALTER TABLE `reclamation`
   ADD CONSTRAINT `reclamation_ibfk_2` FOREIGN KEY (`id_facture`) REFERENCES `facture` (`id`);
 
 --
+-- ======================= PHASE 2 : CONTRATS, QUARTIERS, TYPES D'ACTIVITÉ =======================
+-- Un client a un ou plusieurs contrats ; chaque contrat est dans un quartier ;
+-- chaque quartier a un type d'activité (résidentiel, commercial, industriel) qui fixe le barème.
+-- Migration « additive » (option B) : les anciennes colonnes de `client` sont conservées
+-- et seront supprimées lors du nettoyage final, quand tout le code utilisera les contrats.
+--
+
+CREATE TABLE `type_activite` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `nom` varchar(50) NOT NULL,
+  `seuil_eau` decimal(10,2) NOT NULL DEFAULT 50.00,    -- seuil d'anomalie (m³/mois), défini par le fournisseur
+  `seuil_elec` decimal(10,2) NOT NULL DEFAULT 500.00,  -- seuil d'anomalie (kWh/mois)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `nom` (`nom`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `tranche_tarif` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id_type_activite` int(11) NOT NULL,
+  `service` enum('eau','electricite') NOT NULL,
+  `borne_max` decimal(10,2) DEFAULT NULL,              -- NULL = sans limite (dernière tranche)
+  `prix_unitaire` decimal(10,4) NOT NULL,
+  `ordre` tinyint(4) NOT NULL,                         -- 1, 2, 3... pour trier les tranches
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `type_service_ordre` (`id_type_activite`,`service`,`ordre`),
+  CONSTRAINT `tranche_tarif_ibfk_1` FOREIGN KEY (`id_type_activite`) REFERENCES `type_activite` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `quartier` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `nom` varchar(100) NOT NULL,
+  `id_type_activite` int(11) NOT NULL,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `nom` (`nom`),
+  KEY `id_type_activite` (`id_type_activite`),
+  CONSTRAINT `quartier_ibfk_1` FOREIGN KEY (`id_type_activite`) REFERENCES `type_activite` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+CREATE TABLE `contrat` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `id_client` int(11) NOT NULL,
+  `id_quartier` int(11) NOT NULL,
+  `num_compteur_eau` varchar(50) DEFAULT NULL,
+  `num_compteur_elec` varchar(50) DEFAULT NULL,
+  `index_initial_eau` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `index_initial_elec` decimal(10,2) NOT NULL DEFAULT 0.00,
+  `date_debut` date NOT NULL DEFAULT curdate(),
+  `date_fin` date DEFAULT NULL,
+  `statut` enum('actif','resilie') NOT NULL DEFAULT 'actif',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `num_compteur_eau` (`num_compteur_eau`),
+  UNIQUE KEY `num_compteur_elec` (`num_compteur_elec`),
+  KEY `id_client` (`id_client`),
+  KEY `id_quartier` (`id_quartier`),
+  -- pas de CASCADE : un contrat (même résilié) est conservé ; un client lié ne peut pas être supprimé
+  CONSTRAINT `contrat_ibfk_1` FOREIGN KEY (`id_client`) REFERENCES `client` (`id`),
+  CONSTRAINT `contrat_ibfk_2` FOREIGN KEY (`id_quartier`) REFERENCES `quartier` (`id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
+
+-- consommation : une saisie par contrat et par mois (id_contrat est NULL tant que le code n'est pas migré)
+ALTER TABLE `consommation`
+  ADD COLUMN `id_contrat` int(11) DEFAULT NULL AFTER `id_client`,
+  ADD KEY `id_client_idx` (`id_client`),
+  ADD KEY `id_contrat` (`id_contrat`),
+  ADD CONSTRAINT `consommation_ibfk_2` FOREIGN KEY (`id_contrat`) REFERENCES `contrat` (`id`);
+ALTER TABLE `consommation` DROP INDEX `id_client`;
+ALTER TABLE `consommation` ADD UNIQUE KEY `contrat_mois_annee` (`id_contrat`,`mois`,`annee`);
+
+-- facture : contrat et montants figés par service (plus de recalcul à l'affichage)
+ALTER TABLE `facture`
+  ADD COLUMN `id_contrat` int(11) DEFAULT NULL AFTER `id_client`,
+  ADD COLUMN `montant_eau` decimal(10,2) DEFAULT NULL AFTER `conso_elec`,
+  ADD COLUMN `montant_elec` decimal(10,2) DEFAULT NULL AFTER `montant_eau`,
+  ADD KEY `id_contrat` (`id_contrat`),
+  ADD CONSTRAINT `facture_ibfk_3` FOREIGN KEY (`id_contrat`) REFERENCES `contrat` (`id`);
+
+-- consommation_annuelle : relevé annuel par contrat (le fichier Consommation_Annuelle.txt contient ID_Contrat)
+ALTER TABLE `consommation_annuelle`
+  ADD COLUMN `id_contrat` int(11) DEFAULT NULL AFTER `id_client`,
+  ADD KEY `id_client_idx` (`id_client`),
+  ADD KEY `id_contrat` (`id_contrat`),
+  ADD CONSTRAINT `consommation_annuelle_ibfk_3` FOREIGN KEY (`id_contrat`) REFERENCES `contrat` (`id`);
+ALTER TABLE `consommation_annuelle` DROP INDEX `id_client`;
+ALTER TABLE `consommation_annuelle` ADD UNIQUE KEY `contrat_annee` (`id_contrat`,`annee`);
+
+-- reclamation : une fuite concerne un contrat précis (facultatif)
+ALTER TABLE `reclamation`
+  ADD COLUMN `id_contrat` int(11) DEFAULT NULL AFTER `id_facture`,
+  ADD KEY `id_contrat` (`id_contrat`),
+  ADD CONSTRAINT `reclamation_ibfk_3` FOREIGN KEY (`id_contrat`) REFERENCES `contrat` (`id`);
+
+--
 -- ======================= DONNÉES DE TEST (section 4 du cahier des charges) =======================
 -- Fournisseur : fournisseur@ecohouse.ma / Four#2026
 -- 5 clients (mot de passe Client#2026) avec leur consommation et facture de septembre 2026
@@ -448,6 +540,49 @@ INSERT INTO `facture` (`id`,`numero`,`id_client`,`id_consommation`,`date_facture
 (5,'F-0926-0005',5,5,'2026-09-30','09/2026',22.00,160.00,417.56,75.16,492.72,'impayee');
 INSERT INTO `paiement` (`id`,`id_facture`,`date_paiement`,`montant`,`mode`) VALUES
 (1,1,'2026-10-02',241.50,'especes');
+-- ======================= DONNÉES DE TEST PHASE 2 =======================
+-- 3 types d'activité. Résidentiel = grille de l'énoncé.
+-- Commercial et industriel : valeurs INVENTÉES par l'équipe (hypothèse à confirmer avec l'encadrant).
+INSERT INTO `type_activite` (`id`,`nom`,`seuil_eau`,`seuil_elec`) VALUES
+(1,'residentiel',50.00,500.00),
+(2,'commercial',200.00,2000.00),
+(3,'industriel',1000.00,10000.00);
+
+INSERT INTO `tranche_tarif` (`id_type_activite`,`service`,`borne_max`,`prix_unitaire`,`ordre`) VALUES
+(1,'electricite',100,0.8200,1),(1,'electricite',150,0.9200,2),(1,'electricite',NULL,1.1000,3),
+(1,'eau',6,2.3700,1),(1,'eau',20,7.3900,2),(1,'eau',35,10.9800,3),(1,'eau',NULL,11.0300,4),
+(2,'electricite',200,1.0000,1),(2,'electricite',400,1.1500,2),(2,'electricite',NULL,1.3000,3),
+(2,'eau',10,3.2000,1),(2,'eau',30,8.9000,2),(2,'eau',60,12.5000,3),(2,'eau',NULL,13.2000,4),
+(3,'electricite',1000,1.1000,1),(3,'electricite',5000,1.2500,2),(3,'electricite',NULL,1.4000,3),
+(3,'eau',50,9.5000,1),(3,'eau',200,11.5000,2),(3,'eau',NULL,13.0000,3);
+
+INSERT INTO `quartier` (`id`,`nom`,`id_type_activite`) VALUES
+(1,'Centre-ville',1),
+(2,'Al Massira',1),
+(3,'Souk Jdid',2),
+(4,'Zone industrielle Gzenaya',3);
+
+-- Contrats 1 à 5 : un par client existant (même numéro que le client, donc anciens scénarios et numéros de facture inchangés)
+-- Contrat 6 : Salma a un 2e contrat (commerce) dans un 2e quartier. Contrat 7 : ancien contrat RÉSILIÉ de Mouad.
+INSERT INTO `contrat` (`id`,`id_client`,`id_quartier`,`num_compteur_eau`,`num_compteur_elec`,`index_initial_eau`,`index_initial_elec`,`date_debut`,`date_fin`,`statut`) VALUES
+(1,1,1,'EAU-0001','ELEC-0001',1231.00,8320.00,'2026-01-01',NULL,'actif'),
+(2,2,1,'EAU-0002','ELEC-0002',1238.00,6070.00,'2026-01-01',NULL,'actif'),
+(3,3,2,'EAU-0003','ELEC-0003',632.00,3005.00,'2026-01-01',NULL,'actif'),
+(4,4,2,'EAU-0004','ELEC-0004',400.00,4960.00,'2026-01-01',NULL,'actif'),
+(5,5,2,'EAU-0005','ELEC-0005',828.00,2140.00,'2026-01-01',NULL,'actif'),
+(6,1,3,'EAU-0006','ELEC-0006',100.00,200.00,'2026-10-01',NULL,'actif'),
+(7,5,4,'EAU-0007','ELEC-0007',50.00,900.00,'2025-01-01','2026-06-30','resilie');
+
+-- Les saisies et factures de septembre passent chacune par leur contrat
+UPDATE `consommation` SET `id_contrat` = `id_client`;
+UPDATE `facture` SET `id_contrat` = `id_client`,
+  `montant_eau` = CASE `id` WHEN 1 THEN 103.46 WHEN 2 THEN 88.68 WHEN 3 THEN 59.12 WHEN 4 THEN 73.90 WHEN 5 THEN 241.56 END;
+UPDATE `facture` SET `montant_elec` = `montant_ht` - `montant_eau`;
+
+-- Un agent pour tester l'import du fichier annuel (mot de passe Client#2026, il ne se connecte pas)
+INSERT INTO `agent` (`id`,`nom`,`prenom`,`email`,`mot_de_passe`) VALUES
+(1,'Alaoui','Karim','agent@ecohouse.ma','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi');
+
 COMMIT;
 
 /*!40101 SET CHARACTER_SET_CLIENT=@OLD_CHARACTER_SET_CLIENT */;
