@@ -227,14 +227,6 @@ function facturePdf(int $id): void
         afficher404();
     }
 
-    $tarifs = !empty($f['id_contrat']) ? bdContratTranches((int) $f['id_contrat']) : null;
-    $f['montant_eau'] = $f['montant_eau'] !== null
-        ? (float) $f['montant_eau']
-        : calculerMontant((float) $f['conso_eau'], 'eau', $tarifs);
-    $f['montant_elec'] = $f['montant_elec'] !== null
-        ? (float) $f['montant_elec']
-        : calculerMontant((float) $f['conso_elec'], 'elec', $tarifs);
-
     require_once __DIR__ . '/../lib/fpdf/fpdf.php';
 
     // FPDF ne gère pas l'UTF-8 : on convertit les accents.
@@ -271,7 +263,8 @@ function facturePdf(int $id): void
     $pdf->Cell(0, 6, $t('Client : ' . $f['prenom'] . ' ' . $f['nom']), 0, 1);
     $pdf->Cell(0, 6, $t('Adresse : ' . ($f['adresse'] ?? '')), 0, 1);
     if (!empty($f['contrat_numero'])) {
-        $pdf->Cell(0, 6, $t('Contrat : #' . $f['contrat_numero'] . ' · ' . ($f['quartier'] ?? '')), 0, 1);
+        $pdf->Cell(0, 6, $t('Contrat : #' . $f['contrat_numero'] . ' · ' . ($f['quartier'] ?? '')
+            . ' (' . ($f['type_activite'] ?? '—') . ')'), 0, 1);
         $pdf->Cell(0, 6, $t('Compteurs : eau ' . ($f['num_compteur_eau'] ?? '—') . ' · électricité ' . ($f['num_compteur_elec'] ?? '—')), 0, 1);
     }
     $pdf->Cell(0, 6, $t('Index relevés : eau ' . $num($f['index_eau']) . ' m³ · électricité ' . $num($f['index_elec']) . ' kWh'), 0, 1);
@@ -294,7 +287,9 @@ function facturePdf(int $id): void
     $pdf->Ln(4);
     $pdf->Cell(125, 7, $t('Montant HT'), 0, 0, 'R');
     $pdf->Cell(55, 7, $t($dh($f['montant_ht'])), 0, 1, 'R');
-    $pdf->Cell(125, 7, $t('TVA 18 %'), 0, 0, 'R');
+    // Taux calculé à partir des montants enregistrés (la TVA peut changer dans Paramètres)
+    $taux = (float) $f['montant_ht'] > 0 ? round((float) $f['tva'] / (float) $f['montant_ht'] * 100) : 0;
+    $pdf->Cell(125, 7, $t('TVA ' . $taux . ' %'), 0, 0, 'R');
     $pdf->Cell(55, 7, $t($dh($f['tva'])), 0, 1, 'R');
     $pdf->SetFont('Helvetica', 'B', 12);
     $pdf->Cell(125, 10, $t('Total TTC'), 'T', 0, 'R');
