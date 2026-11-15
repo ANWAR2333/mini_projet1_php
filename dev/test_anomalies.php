@@ -27,6 +27,16 @@ verifier('Elec : 501 kWh depasse le seuil',            $prec, 1260,  8931, $para
 verifier('Elec : exactement 500 kWh = pas d\'anomalie',$prec, 1260,  8930, $param, []);
 verifier('Eau inferieure + elec au-dessus du seuil',   $prec, 1100,  9000, $param, ['eau:index_inferieur', 'electricite:depasse_seuil']);
 
+// Phase 2 : les seuils sont ceux du TYPE D'ACTIVITE du contrat (bdContratSeuils), plus ceux de la table parametre.
+$commercial = ['seuil_eau' => 200.0,  'seuil_elec' => 2000.0,  'taux_tva' => 0.18];
+$industriel = ['seuil_eau' => 1000.0, 'seuil_elec' => 10000.0, 'taux_tva' => 0.18];
+verifier('Commercial : 51 m3 n\'est plus une anomalie',  $prec, 1296,  8550, $commercial, []);
+verifier('Commercial : 201 m3 depasse le seuil',         $prec, 1446,  8550, $commercial, ['eau:depasse_seuil']);
+verifier('Commercial : 2001 kWh depasse le seuil',       $prec, 1260, 10431, $commercial, ['electricite:depasse_seuil']);
+verifier('Industriel : 600 m3 et 5000 kWh = normal',     $prec, 1845, 13430, $industriel, []);
+verifier('Industriel : 1001 m3 depasse le seuil',        $prec, 2246,  8550, $industriel, ['eau:depasse_seuil']);
+verifier('Residentiel : les memes 600 m3 sont une anomalie', $prec, 1845, 8550, $param, ['eau:depasse_seuil']);
+
 foreach ([['1260', 1260.0], ['1 260,5', 1260.5], ['abc', null], ['-5', null], ['', null], ['0', 0.0]] as [$in, $out]) {
     $r = consoNombre($in);
     $ok = $r === $out;
