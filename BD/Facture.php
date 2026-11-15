@@ -9,18 +9,23 @@ declare(strict_types=1);
 
 /** Insère une facture et renvoie son id. */
 function bdFactureInsert(string $numero, int $idClient, int $idConso, string $dateFacture, string $periode,
-                         float $consoEau, float $consoElec, float $ht, float $tva, float $ttc): int
+                         float $consoEau, float $consoElec, float $ht, float $tva, float $ttc,
+                         ?int $idContrat = null, ?float $montantEau = null, ?float $montantElec = null): int
 {
     $pdo = getConnexion();
     $sql = "INSERT INTO facture (numero, id_client, id_consommation, date_facture, periode,
-                                 conso_eau, conso_elec, montant_ht, tva, montant_ttc, statut)
+                                 conso_eau, conso_elec, montant_eau, montant_elec,
+                                 id_contrat, montant_ht, tva, montant_ttc, statut)
             VALUES (:numero, :id_client, :id_conso, :date_facture, :periode,
-                    :conso_eau, :conso_elec, :ht, :tva, :ttc, 'impayee')";
+                    :conso_eau, :conso_elec, :montant_eau, :montant_elec,
+                    :id_contrat, :ht, :tva, :ttc, 'impayee')";
     $st = $pdo->prepare($sql);
     $st->execute([
         ':numero' => $numero, ':id_client' => $idClient, ':id_conso' => $idConso,
         ':date_facture' => $dateFacture, ':periode' => $periode,
         ':conso_eau' => $consoEau, ':conso_elec' => $consoElec,
+        ':montant_eau' => $montantEau, ':montant_elec' => $montantElec,
+        ':id_contrat' => $idContrat,
         ':ht' => $ht, ':tva' => $tva, ':ttc' => $ttc,
     ]);
     return (int) $pdo->lastInsertId();
@@ -39,11 +44,15 @@ function bdFactureIdByConso(int $idConso): ?int
 function bdFactureByClient(int $idClient): array
 {
     $st = getConnexion()->prepare(
-        "SELECT id, numero, date_facture, periode, conso_eau, conso_elec,
-                montant_ht, tva, montant_ttc, statut
-         FROM facture
-         WHERE id_client = :id
-         ORDER BY date_facture DESC, id DESC");
+        "SELECT f.id, f.numero, f.id_contrat, q.nom AS quartier,
+                ct.num_compteur_eau, ct.num_compteur_elec,
+                f.date_facture, f.periode, f.conso_eau, f.conso_elec,
+                f.montant_ht, f.tva, f.montant_ttc, f.statut
+         FROM facture f
+         LEFT JOIN contrat ct ON ct.id = f.id_contrat
+         LEFT JOIN quartier q ON q.id = ct.id_quartier
+         WHERE f.id_client = :id
+         ORDER BY f.date_facture DESC, f.id DESC");
     $st->execute([':id' => $idClient]);
     return $st->fetchAll();
 }
@@ -56,11 +65,16 @@ function bdFactureOne(int $id): array
 {
     $st = getConnexion()->prepare(
         "SELECT f.*,
-                c.nom, c.prenom, c.adresse, c.num_compteur_eau, c.num_compteur_elec,
+                c.nom, c.prenom, c.adresse,
+                ct.num_compteur_eau, ct.num_compteur_elec, ct.id AS contrat_numero,
+                q.nom AS quartier, t.nom AS type_activite,
                 co.mois, co.annee, co.index_eau, co.index_elec, co.photo_eau, co.photo_elec
          FROM facture f
          JOIN client c        ON c.id  = f.id_client
          JOIN consommation co ON co.id = f.id_consommation
+         LEFT JOIN contrat ct ON ct.id = f.id_contrat
+         LEFT JOIN quartier q ON q.id = ct.id_quartier
+         LEFT JOIN type_activite t ON t.id = q.id_type_activite
          WHERE f.id = :id");
     $st->execute([':id' => $id]);
     $row = $st->fetch();
@@ -72,10 +86,13 @@ function bdFactureOne(int $id): array
 /** Toutes les factures avec le nom du client. $statut = null (toutes) | 'impayee' | 'payee'. */
 function bdFactureAll(?string $statut = null): array
 {
-    $sql = "SELECT f.id, f.numero, f.date_facture, f.periode, f.montant_ttc, f.statut,
+    $sql = "SELECT f.id, f.numero, f.id_contrat, q.nom AS quartier,
+                   f.date_facture, f.periode, f.montant_ttc, f.statut,
                    c.nom, c.prenom
             FROM facture f
-            JOIN client c ON c.id = f.id_client";
+            JOIN client c ON c.id = f.id_client
+            LEFT JOIN contrat ct ON ct.id = f.id_contrat
+            LEFT JOIN quartier q ON q.id = ct.id_quartier";
     $params = [];
     if ($statut !== null) {
         $sql .= " WHERE f.statut = :statut";

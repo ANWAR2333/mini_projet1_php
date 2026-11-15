@@ -21,7 +21,7 @@ SET time_zone = "+00:00";
 -- Base de données : `gestion_factures`
 --
 
-DROP DATABASE IF EXISTS `gestion_factures`;
+--DROP DATABASE IF EXISTS `gestion_factures`;
 CREATE DATABASE `gestion_factures` CHARACTER SET utf8mb4 COLLATE utf8mb4_general_ci;
 USE `gestion_factures`;
 
@@ -73,10 +73,6 @@ CREATE TABLE `client` (
   `telephone` varchar(20) DEFAULT NULL,
   `email` varchar(150) NOT NULL,
   `mot_de_passe` varchar(255) NOT NULL,
-  `num_compteur_eau` varchar(50) DEFAULT NULL,
-  `num_compteur_elec` varchar(50) DEFAULT NULL,
-  `index_initial_eau` decimal(10,2) NOT NULL DEFAULT 0.00,
-  `index_initial_elec` decimal(10,2) NOT NULL DEFAULT 0.00,
   `date_creation` datetime DEFAULT current_timestamp()
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
@@ -243,9 +239,7 @@ ALTER TABLE `anomalie`
 --
 ALTER TABLE `client`
   ADD PRIMARY KEY (`id`),
-  ADD UNIQUE KEY `email` (`email`),
-  ADD UNIQUE KEY `num_compteur_eau` (`num_compteur_eau`),
-  ADD UNIQUE KEY `num_compteur_elec` (`num_compteur_elec`);
+  ADD UNIQUE KEY `email` (`email`);
 
 --
 -- Index pour la table `consommation`
@@ -425,8 +419,7 @@ ALTER TABLE `reclamation`
 -- ======================= PHASE 2 : CONTRATS, QUARTIERS, TYPES D'ACTIVITÉ =======================
 -- Un client a un ou plusieurs contrats ; chaque contrat est dans un quartier ;
 -- chaque quartier a un type d'activité (résidentiel, commercial, industriel) qui fixe le barème.
--- Migration « additive » (option B) : les anciennes colonnes de `client` sont conservées
--- et seront supprimées lors du nettoyage final, quand tout le code utilisera les contrats.
+-- Les compteurs et index initiaux appartiennent désormais aux contrats, pas aux clients.
 --
 
 CREATE TABLE `type_activite` (
@@ -481,7 +474,7 @@ CREATE TABLE `contrat` (
   CONSTRAINT `contrat_ibfk_2` FOREIGN KEY (`id_quartier`) REFERENCES `quartier` (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
--- consommation : une saisie par contrat et par mois (id_contrat est NULL tant que le code n'est pas migré)
+-- consommation : une saisie par contrat et par mois (id_contrat reste NULL pour d'éventuels relevés historiques)
 ALTER TABLE `consommation`
   ADD COLUMN `id_contrat` int(11) DEFAULT NULL AFTER `id_client`,
   ADD KEY `id_client_idx` (`id_client`),
@@ -520,12 +513,13 @@ ALTER TABLE `reclamation`
 --
 INSERT INTO `fournisseur` (`id`,`nom`,`email`,`mot_de_passe`,`adresse`,`telephone`) VALUES
 (1,'Amendis','fournisseur@ecohouse.ma','$2y$10$ChpC9FQkwmsK1g2lwzWIl.Vjvf3vPkSq9HOGVdkG6i5kNHA45i3Jy','Av. Abdelkhalek Torres, Tétouan','0539000000');
-INSERT INTO `client` (`id`,`nom`,`prenom`,`adresse`,`telephone`,`email`,`mot_de_passe`,`num_compteur_eau`,`num_compteur_elec`,`index_initial_eau`,`index_initial_elec`) VALUES
-(1,'Bennani','Salma','12 rue Mohammed V, Tétouan','0612345601','salma@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi','EAU-0001','ELEC-0001',1231.00,8320.00),
-(2,'ElAmrani','Youssef','5 avenue des FAR, Tétouan','0612345602','youssef@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi','EAU-0002','ELEC-0002',1238.00,6070.00),
-(3,'Berrada','Nadia','27 rue Al Massira, Tétouan','0612345603','nadia@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi','EAU-0003','ELEC-0003',632.00,3005.00),
-(4,'Tazi','Khadija','8 rue Ibn Battouta, Tétouan','0612345604','khadija@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi','EAU-0004','ELEC-0004',400.00,4960.00),
-(5,'Jemaoui','Mouad','33 boulevard Hassan II, Tétouan','0612345605','mouad@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi','EAU-0005','ELEC-0005',828.00,2140.00);
+
+INSERT INTO `client` (`id`,`nom`,`prenom`,`adresse`,`telephone`,`email`,`mot_de_passe`) VALUES
+(1,'Bennani','Salma','12 rue Mohammed V, Tétouan','0612345601','salma@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi'),
+(2,'ElAmrani','Youssef','5 avenue des FAR, Tétouan','0612345602','youssef@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi'),
+(3,'Berrada','Nadia','27 rue Al Massira, Tétouan','0612345603','nadia@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi'),
+(4,'Tazi','Khadija','8 rue Ibn Battouta, Tétouan','0612345604','khadija@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi'),
+(5,'Jemaoui','Mouad','33 boulevard Hassan II, Tétouan','0612345605','mouad@gmail.com','$2y$10$ymsVMdZzJ2FkrtOvSG8xy.hi3jUrQ.rtqfoLG9AmgIQo1sB6/WOhi');
 INSERT INTO `consommation` (`id`,`id_client`,`mois`,`annee`,`index_eau`,`index_elec`,`photo_eau`,`photo_elec`,`date_saisie`,`statut`) VALUES
 (1,1,9,2026,1245.00,8430.00,NULL,NULL,'2026-09-24 10:00:00','normale'),
 (2,2,9,2026,1250.00,6200.00,NULL,NULL,'2026-09-24 10:00:00','normale'),

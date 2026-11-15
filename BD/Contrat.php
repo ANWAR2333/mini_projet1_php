@@ -98,3 +98,79 @@ function bdContratTranches(int $idContrat): array
     }
     return $res;
 }
+
+/** Crée un contrat pour un client donné et retourne son identifiant. */
+function bdContratInsert(
+    int $idClient,
+    int $idQuartier,
+    ?string $numCompteurEau,
+    ?string $numCompteurElec,
+    float $indexInitialEau,
+    float $indexInitialElec,
+    string $dateDebut,
+    ?string $dateFin = null,
+    string $statut = 'actif'
+): int {
+    $sql = 'INSERT INTO contrat
+                (id_client, id_quartier, num_compteur_eau, num_compteur_elec,
+                 index_initial_eau, index_initial_elec, date_debut, date_fin, statut)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)';
+    $st = getConnexion()->prepare($sql);
+    $st->execute([
+        $idClient,
+        $idQuartier,
+        $numCompteurEau === '' ? null : $numCompteurEau,
+        $numCompteurElec === '' ? null : $numCompteurElec,
+        $indexInitialEau,
+        $indexInitialElec,
+        $dateDebut,
+        $dateFin === '' ? null : $dateFin,
+        $statut,
+    ]);
+
+    return (int) getConnexion()->lastInsertId();
+}
+
+/** Met à jour les informations d'un contrat existant. */
+function bdContratUpdate(
+    int $id,
+    int $idQuartier,
+    ?string $numCompteurEau,
+    ?string $numCompteurElec,
+    float $indexInitialEau,
+    float $indexInitialElec,
+    string $dateDebut,
+    ?string $dateFin = null,
+    string $statut = 'actif'
+): int {
+    $sql = 'UPDATE contrat
+            SET id_quartier = ?, num_compteur_eau = ?, num_compteur_elec = ?,
+                index_initial_eau = ?, index_initial_elec = ?, date_debut = ?,
+                date_fin = ?, statut = ?
+            WHERE id = ?';
+    $st = getConnexion()->prepare($sql);
+    $st->execute([
+        $idQuartier,
+        $numCompteurEau === '' ? null : $numCompteurEau,
+        $numCompteurElec === '' ? null : $numCompteurElec,
+        $indexInitialEau,
+        $indexInitialElec,
+        $dateDebut,
+        $dateFin === '' ? null : $dateFin,
+        $statut,
+        $id,
+    ]);
+
+    return $st->rowCount();
+}
+
+/** Résilie un contrat en date du jour et retourne le nombre de lignes modifiées. */
+function bdContratResilier(int $id, ?string $dateFin = null): int
+{
+    $st = getConnexion()->prepare(
+        'UPDATE contrat SET statut = ?, date_fin = ? WHERE id = ? AND statut = ?'
+    );
+    $date = $dateFin ?? date('Y-m-d');
+    $st->execute(['resilie', $date, $id, 'actif']);
+    return $st->rowCount();
+}

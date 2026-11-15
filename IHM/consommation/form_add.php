@@ -23,6 +23,26 @@ $compteurs = [
     <div class="message message-erreur"><?= $e($msg) ?></div>
 <?php endforeach; ?>
 
+<?php if (!$contrats): ?>
+    <div class="carte">
+        <p>Vous n’avez aucun contrat actif. Contactez le fournisseur pour en créer un avant de saisir un relevé.</p>
+        <a class="btn-secondaire" href="<?= $base ?>Contrat/all">Voir mes contrats</a>
+    </div>
+    <?php return; ?>
+<?php endif; ?>
+
+<form method="get" action="<?= $e($base) ?>Consommation/add" class="carte formulaire">
+    <label for="id_contrat">Contrat à relever *</label>
+    <select class="champ" id="id_contrat" name="id_contrat" required onchange="this.form.submit()">
+        <?php foreach ($contrats as $c): ?>
+            <option value="<?= (int) $c['id'] ?>"<?= $contrat !== null && (int) $contrat['id'] === (int) $c['id'] ? ' selected' : '' ?>>
+                Contrat #<?= (int) $c['id'] ?> — <?= $e($c['quartier']) ?> · Eau <?= $e($c['num_compteur_eau'] ?: '—') ?> · Électricité <?= $e($c['num_compteur_elec'] ?: '—') ?>
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <noscript><button class="btn-secondaire" type="submit">Choisir ce contrat</button></noscript>
+</form>
+
 <?php if (!$ouverte): ?>
     <div class="carte">
         <p>La saisie est ouverte du 18 au <?= (int) $dernierJour ?> <?= $e(mb_strtolower($nomMois, 'UTF-8')) ?>.
@@ -40,6 +60,11 @@ $compteurs = [
 <?php endif; ?>
 
 <form method="post" action="" enctype="multipart/form-data" id="form-saisie" novalidate>
+    <input type="hidden" name="id_contrat" value="<?= (int) $contrat['id'] ?>">
+    <section class="carte">
+        <h2>Contrat #<?= (int) $contrat['id'] ?> — <?= $e($contrat['quartier']) ?></h2>
+        <p>Compteur eau : <?= $e($contrat['num_compteur_eau'] ?: '—') ?> · Compteur électricité : <?= $e($contrat['num_compteur_elec'] ?: '—') ?></p>
+    </section>
     <div class="grille-2">
         <?php foreach ($compteurs as $cle => $c): ?>
             <div class="carte">
@@ -102,17 +127,16 @@ $compteurs = [
 // Estimation affichée à titre indicatif : le calcul qui compte est fait en PHP (R6, R7).
 (function () {
     var TAUX = <?= json_encode((float) $param['taux_tva']) ?>;
-    var TARIFS = {                       // [consommation maximale de la tranche, prix unitaire]
-        eau:  [[6, 2.37], [20, 7.39], [35, 10.98], [Infinity, 11.03]],
-        elec: [[100, 0.82], [150, 0.92], [Infinity, 1.10]]
-    };
+    var TARIFS = <?= json_encode($tarifs, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
     var arrondi = function (x) { return Math.round(x * 100) / 100; };
     var fmt = function (x) { return x.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
 
     function montant(conso, type) {
         if (conso <= 0) { return 0; }
         for (var i = 0; i < TARIFS[type].length; i++) {
-            if (conso <= TARIFS[type][i][0]) { return arrondi(conso * TARIFS[type][i][1]); }
+            if (TARIFS[type][i][0] === null || conso <= TARIFS[type][i][0]) {
+                return arrondi(conso * TARIFS[type][i][1]);
+            }
         }
         return 0;
     }

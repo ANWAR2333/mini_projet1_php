@@ -22,8 +22,9 @@ function clientOne(int $id): void
     }
 
     afficherVue('client/one.php', [
-        'titre'  => 'Client ' . $client['prenom'] . ' ' . $client['nom'],
-        'client' => $client,
+        'titre'   => 'Client ' . $client['prenom'] . ' ' . $client['nom'],
+        'client'  => $client,
+        'contrats' => bdContratsByClient($id),
     ]);
 }
 
@@ -48,18 +49,14 @@ function clientAdd(): void
                     $donnees['adresse'] !== '' ? $donnees['adresse'] : null,
                     $donnees['telephone'] !== '' ? $donnees['telephone'] : null,
                     $donnees['email'],
-                    $donnees['mot_de_passe'],
-                    $donnees['num_compteur_eau'],
-                    $donnees['num_compteur_elec'],
-                    (float) $donnees['index_initial_eau'],
-                    (float) $donnees['index_initial_elec']
+                    $donnees['mot_de_passe']
                 );
             } catch (PDOException $e) {
                 // Le code SQL 23000 signale notamment une valeur unique déjà utilisée.
                 if ($e->getCode() !== '23000') {
                     throw $e;
                 }
-                $erreurs[] = 'Cet email ou ce numéro de compteur est déjà utilisé.';
+                $erreurs[] = 'Cette adresse email est déjà utilisée.';
             }
 
             if (!$erreurs) {
@@ -89,7 +86,7 @@ function clientUpdate(int $id): void
     $erreurs = [];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        $donnees = clientDonneesPostees();
+        $donnees = clientDonneesPostees($client);
         $erreurs = clientValiderDonnees($donnees, false);
 
         if (!$erreurs) {
@@ -101,18 +98,13 @@ function clientUpdate(int $id): void
                     $donnees['prenom'],
                     $donnees['adresse'] !== '' ? $donnees['adresse'] : null,
                     $donnees['telephone'] !== '' ? $donnees['telephone'] : null,
-                    $donnees['email'],
-                    $donnees['num_compteur_eau'],
-                    $donnees['num_compteur_elec'],
-                    (float) $donnees['index_initial_eau'],
-                    (float) $donnees['index_initial_elec']
+                    $donnees['email']
                 );
             } catch (PDOException $e) {
-                // L'email et les numéros de compteur doivent rester uniques.
                 if ($e->getCode() !== '23000') {
                     throw $e;
                 }
-                $erreurs[] = 'Cet email ou ce numéro de compteur est déjà utilisé.';
+                $erreurs[] = 'Cette adresse email est déjà utilisée.';
             }
 
             if (!$erreurs) {
@@ -168,8 +160,6 @@ function clientDonneesFormulaire(array $client = []): array
 {
     $champs = [
         'nom', 'prenom', 'adresse', 'telephone', 'email',
-        'num_compteur_eau', 'num_compteur_elec',
-        'index_initial_eau', 'index_initial_elec',
     ];
     $donnees = array_fill_keys($champs, '');
 
@@ -184,17 +174,17 @@ function clientDonneesFormulaire(array $client = []): array
 }
 
 // Récupère et nettoie les valeurs envoyées par le formulaire.
-function clientDonneesPostees(): array
+function clientDonneesPostees(array $client = []): array
 {
-    $donnees = clientDonneesFormulaire();
-    foreach ($donnees as $champ => $_) {
+    $donnees = clientDonneesFormulaire($client);
+    foreach (['nom', 'prenom', 'adresse', 'telephone', 'email', 'mot_de_passe'] as $champ) {
         $donnees[$champ] = trim((string) ($_POST[$champ] ?? ''));
     }
 
     return $donnees;
 }
 
-// Vérifie les champs obligatoires, les limites, l'email, le mot de passe et les index.
+// Vérifie les champs personnels et les identifiants de connexion du client.
 function clientValiderDonnees(array &$donnees, bool $motDePasseObligatoire): array
 {
     $erreurs = [];
@@ -204,8 +194,6 @@ function clientValiderDonnees(array &$donnees, bool $motDePasseObligatoire): arr
         'adresse'             => 255,
         'telephone'           => 20,
         'email'               => 150,
-        'num_compteur_eau'    => 50,
-        'num_compteur_elec'   => 50,
     ];
 
     foreach (['nom', 'prenom', 'email'] as $champ) {
@@ -231,15 +219,6 @@ function clientValiderDonnees(array &$donnees, bool $motDePasseObligatoire): arr
         $erreurs[] = 'Le mot de passe est obligatoire.';
     } elseif ($motDePasseObligatoire && strlen($donnees['mot_de_passe']) < 8) {
         $erreurs[] = 'Le mot de passe doit contenir au moins 8 caractères.';
-    }
-
-    foreach (['index_initial_eau', 'index_initial_elec'] as $champ) {
-        $valeur = str_replace(',', '.', $donnees[$champ]);
-        if ($valeur === '' || !is_numeric($valeur) || (float) $valeur < 0 || (float) $valeur > 99999999.99) {
-            $erreurs[] = 'Les index initiaux doivent être des nombres positifs valides.';
-            continue;
-        }
-        $donnees[$champ] = (string) round((float) $valeur, 2);
     }
 
     return array_values(array_unique($erreurs));

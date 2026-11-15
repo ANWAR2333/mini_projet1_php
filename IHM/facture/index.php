@@ -28,7 +28,7 @@ $num      = fn($x) => rtrim(rtrim(number_format((float) $x, 2, ',', ''), '0'), '
     <table class="tableau">
       <thead>
         <tr>
-          <th>N°</th><th>Date</th><th>Période</th><th>Eau</th><th>Élec.</th>
+          <th>N°</th><th>Contrat</th><th>Date</th><th>Période</th><th>Eau</th><th>Élec.</th>
           <th>Total TTC</th><th>Statut</th><th>Actions</th>
         </tr>
       </thead>
@@ -37,6 +37,7 @@ $num      = fn($x) => rtrim(rtrim(number_format((float) $x, 2, ',', ''), '0'), '
           [$m, $a] = explode('/', $f['periode']); ?>
         <tr>
           <td><?= $e($f['numero']) ?></td>
+          <td><?= !empty($f['id_contrat']) ? '#' . (int) $f['id_contrat'] . ' · ' . $e($f['quartier'] ?? '') : 'Ancien relevé' ?></td>
           <td><?= date('d/m/Y', strtotime($f['date_facture'])) ?></td>
           <td><?= $moisNoms[(int) $m - 1] . ' ' . $e($a) ?></td>
           <td><?= $num($f['conso_eau']) ?> m³</td>

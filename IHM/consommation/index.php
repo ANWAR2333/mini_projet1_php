@@ -20,13 +20,14 @@ $base = BASE_URL;
         <table class="tableau">
             <thead>
                 <tr>
-                    <th>Mois</th><th>Index eau</th><th>Index élec.</th>
+                    <th>Contrat</th><th>Mois</th><th>Index eau</th><th>Index élec.</th>
                     <th>Conso. eau</th><th>Conso. élec.</th><th>Statut</th>
                 </tr>
             </thead>
             <tbody>
             <?php foreach ($historique as $l): ?>
                 <tr>
+                    <td><?= $e($l['contrat']) ?></td>
                     <td><?= $e($l['periode']) ?></td>
                     <td><?= $e($nb($l['index_eau'])) ?> m³</td>
                     <td><?= $e($nb($l['index_elec'])) ?> kWh</td>

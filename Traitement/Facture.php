@@ -28,12 +28,16 @@ const TRANCHES = [
 ];
 
 /** Montant HT d'un service. $type = 'eau' | 'elec'. Arrondi à 2 décimales. */
-function calculerMontant(float $conso, string $type): float
+function calculerMontant(float $conso, string $type, ?array $barème = null): float
 {
     if ($conso <= 0) {
         return 0.0;
     }
-    $tranches = TRANCHES[$type];
+    $grilles = $barème ?? TRANCHES;
+    if (empty($grilles[$type])) {
+        throw new RuntimeException('Aucun barème tarifaire disponible pour le service « ' . $type . ' ».');
+    }
+    $tranches = $grilles[$type];
 
     if (!CALCUL_PROGRESSIF) {
         foreach ($tranches as [$max, $prix]) {
@@ -71,25 +75,45 @@ function factureGenerer(int $idConso): int
         return $deja;
     }
 
-    $c    = bdConsoOne($idConso);                                                          // saisie du mois
-    $prec = bdConsoPrecedente((int) $c['id_client'], (int) $c['mois'], (int) $c['annee']); // R3
-    $p    = bdParametreGet();                                                              // taux_tva = 0.18
+    $c = bdConsoOne($idConso);
+    if (!$c || empty($c['id_contrat'])) {
+        throw new RuntimeException('La consommation ne correspond à aucun contrat.');
+    }
+    $idContrat = (int) $c['id_contrat'];
+    $prec = bdConsoPrecedente($idContrat, (int) $c['mois'], (int) $c['annee']);
+    $p = bdParametreGet();
 
     // R4 – consommation du mois
     $consoEau  = round((float) $c['index_eau']  - (float) $prec['index_eau'], 2);
     $consoElec = round((float) $c['index_elec'] - (float) $prec['index_elec'], 2);
 
     // R7 – montants
-    $ht  = round(calculerMontant($consoEau, 'eau') + calculerMontant($consoElec, 'elec'), 2);
+    $tarifs = bdContratTranches($idContrat);
+    $montantEau = calculerMontant($consoEau, 'eau', $tarifs);
+    $montantElec = calculerMontant($consoElec, 'elec', $tarifs);
+    $ht  = round($montantEau + $montantElec, 2);
     $tva = round($ht * (float) $p['taux_tva'], 2);
     $ttc = round($ht + $tva, 2);
 
-    // R8 – numéro F-MMAA-CCCC, période MM/AAAA
-    $numero  = sprintf('F-%02d%02d-%04d', $c['mois'], $c['annee'] % 100, $c['id_client']);
+    // R8 – numéro unique par contrat et période, période MM/AAAA
+    $numero  = sprintf('F-%02d%02d-%04d-%04d', $c['mois'], $c['annee'] % 100, $c['id_client'], $idContrat);
     $periode = sprintf('%02d/%04d', $c['mois'], $c['annee']);
 
-    return bdFactureInsert($numero, (int) $c['id_client'], $idConso, date('Y-m-d'), $periode,
-                           $consoEau, $consoElec, $ht, $tva, $ttc);
+    return bdFactureInsert(
+        $numero,
+        (int) $c['id_client'],
+        $idConso,
+        date('Y-m-d'),
+        $periode,
+        $consoEau,
+        $consoElec,
+        $ht,
+        $tva,
+        $ttc,
+        $idContrat,
+        $montantEau,
+        $montantElec
+    );
 }
 
 /** Route Facture/all — liste des factures du client connecté. */
@@ -124,8 +148,13 @@ function factureOne(int $id): void
     }
 
     // Montant HT de chaque service pour le tableau du détail.
-    $facture['montant_eau']  = calculerMontant((float) $facture['conso_eau'], 'eau');
-    $facture['montant_elec'] = calculerMontant((float) $facture['conso_elec'], 'elec');
+    $tarifs = !empty($facture['id_contrat']) ? bdContratTranches((int) $facture['id_contrat']) : null;
+    $facture['montant_eau'] = $facture['montant_eau'] !== null
+        ? (float) $facture['montant_eau']
+        : calculerMontant((float) $facture['conso_eau'], 'eau', $tarifs);
+    $facture['montant_elec'] = $facture['montant_elec'] !== null
+        ? (float) $facture['montant_elec']
+        : calculerMontant((float) $facture['conso_elec'], 'elec', $tarifs);
 
     afficherVue('facture/one.php', [
         'titre'   => 'Facture ' . $facture['numero'],
@@ -168,8 +197,13 @@ function facturePdf(int $id): void
         afficher404();
     }
 
-    $f['montant_eau']  = calculerMontant((float) $f['conso_eau'], 'eau');
-    $f['montant_elec'] = calculerMontant((float) $f['conso_elec'], 'elec');
+    $tarifs = !empty($f['id_contrat']) ? bdContratTranches((int) $f['id_contrat']) : null;
+    $f['montant_eau'] = $f['montant_eau'] !== null
+        ? (float) $f['montant_eau']
+        : calculerMontant((float) $f['conso_eau'], 'eau', $tarifs);
+    $f['montant_elec'] = $f['montant_elec'] !== null
+        ? (float) $f['montant_elec']
+        : calculerMontant((float) $f['conso_elec'], 'elec', $tarifs);
 
     require_once __DIR__ . '/../lib/fpdf/fpdf.php';
 
@@ -206,6 +240,10 @@ function facturePdf(int $id): void
     $pdf->Cell(0, 6, $t('Période : ' . $debut . ' – ' . $fin), 0, 1);
     $pdf->Cell(0, 6, $t('Client : ' . $f['prenom'] . ' ' . $f['nom']), 0, 1);
     $pdf->Cell(0, 6, $t('Adresse : ' . ($f['adresse'] ?? '')), 0, 1);
+    if (!empty($f['contrat_numero'])) {
+        $pdf->Cell(0, 6, $t('Contrat : #' . $f['contrat_numero'] . ' · ' . ($f['quartier'] ?? '')), 0, 1);
+        $pdf->Cell(0, 6, $t('Compteurs : eau ' . ($f['num_compteur_eau'] ?? '—') . ' · électricité ' . ($f['num_compteur_elec'] ?? '—')), 0, 1);
+    }
     $pdf->Cell(0, 6, $t('Index relevés : eau ' . $num($f['index_eau']) . ' m³ · électricité ' . $num($f['index_elec']) . ' kWh'), 0, 1);
     $pdf->Ln(6);
 
