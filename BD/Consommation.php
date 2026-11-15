@@ -1,5 +1,13 @@
 <?php
 
+/**
+ * BD/Consommation.php — Amal
+ * Requêtes SQL de la saisie. Depuis la phase 2, tout passe par le CONTRAT (et plus par le client) :
+ *  - une saisie par contrat et par mois (UNIQUE contrat_mois_annee) ;
+ *  - l'index précédent est celui du contrat ; sans saisie, c'est l'index initial du contrat.
+ * id_client reste enregistré dans consommation mais il est TOUJOURS celui du contrat.
+ */
+
 function bdConsoOne(int $id): array
 {
     $st = getConnexion()->prepare('SELECT * FROM consommation WHERE id = ?');
@@ -7,6 +15,7 @@ function bdConsoOne(int $id): array
     return $st->fetch() ?: [];
 }
 
+/** Ce contrat a-t-il déjà une saisie pour ce mois ? (R2) */
 function bdConsoExiste(int $idContrat, int $mois, int $annee): bool
 {
     $st = getConnexion()->prepare(
@@ -16,6 +25,7 @@ function bdConsoExiste(int $idContrat, int $mois, int $annee): bool
     return (int) $st->fetchColumn() > 0;
 }
 
+/** Index initial des deux compteurs du CONTRAT (et non plus du client). */
 function bdConsoIndexInitial(int $idContrat): array
 {
     $st = getConnexion()->prepare('SELECT index_initial_eau, index_initial_elec FROM contrat WHERE id = ?');
@@ -35,7 +45,10 @@ function bdConsoSqlCorrige(string $service, string $alias): string
               LIMIT 1) AS $alias";
 }
 
-
+/**
+ * R3 — Dernière saisie valide du CONTRAT avant (mois, annee) ; sinon index initial du contrat.
+ * Attention (Farah) : le 1er paramètre est l'id du CONTRAT, pas celui du client.
+ */
 function bdConsoPrecedente(int $idContrat, int $mois, int $annee): array
 {
     $sql = 'SELECT c.*, ' . bdConsoSqlCorrige('eau', 'eau_corrige') . ', '
@@ -76,33 +89,34 @@ function bdConsoPrecedente(int $idContrat, int $mois, int $annee): array
     ];
 }
 
-function bdConsoByClient(int $idClient): array
+/** Historique d'un contrat, du plus ancien au plus récent. */
+function bdConsoByContrat(int $idContrat): array
 {
-    $sql = 'SELECT c.*, ct.num_compteur_eau, ct.num_compteur_elec, q.nom AS quartier,
-                   ' . bdConsoSqlCorrige('eau', 'eau_corrige') . ', '
+    $sql = 'SELECT c.*, ' . bdConsoSqlCorrige('eau', 'eau_corrige') . ', '
          . bdConsoSqlCorrige('electricite', 'elec_corrige') . '
             FROM consommation c
-            LEFT JOIN contrat ct ON ct.id = c.id_contrat
-            LEFT JOIN quartier q ON q.id = ct.id_quartier
-            WHERE c.id_client = ?
-            ORDER BY c.id_contrat, c.annee ASC, c.mois ASC';
+            WHERE c.id_contrat = ?
+            ORDER BY c.annee ASC, c.mois ASC';
     $st = getConnexion()->prepare($sql);
-    $st->execute([$idClient]);
+    $st->execute([$idContrat]);
     return $st->fetchAll();
 }
 
-
+/**
+ * Enregistre la saisie et ses anomalies dans une transaction.
+ * $conso : id_contrat, id_client (celui du contrat), mois, annee, index_eau, index_elec, photo_eau, photo_elec, statut.
+ */
 function bdConsoEnregistrer(array $conso, array $anomalies): int
 {
     $pdo = getConnexion();
     $pdo->beginTransaction();
     try {
         $st = $pdo->prepare(
-            'INSERT INTO consommation (id_client, id_contrat, mois, annee, index_eau, index_elec, photo_eau, photo_elec, statut)
+            'INSERT INTO consommation (id_contrat, id_client, mois, annee, index_eau, index_elec, photo_eau, photo_elec, statut)
              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $st->execute([
-            $conso['id_client'], $conso['id_contrat'], $conso['mois'], $conso['annee'],
+            $conso['id_contrat'], $conso['id_client'], $conso['mois'], $conso['annee'],
             $conso['index_eau'], $conso['index_elec'],
             $conso['photo_eau'], $conso['photo_elec'], $conso['statut'],
         ]);

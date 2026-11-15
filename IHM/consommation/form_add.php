@@ -25,23 +25,12 @@ $compteurs = [
 
 <?php if (!$contrats): ?>
     <div class="carte">
-        <p>Vous n’avez aucun contrat actif. Contactez le fournisseur pour en créer un avant de saisir un relevé.</p>
-        <a class="btn-secondaire" href="<?= $base ?>Contrat/all">Voir mes contrats</a>
+        <p>Vous n'avez aucun contrat actif : la saisie n'est pas possible.
+           Contactez le fournisseur pour activer un contrat.</p>
+        <a class="btn-secondaire" href="<?= $e($base) ?>Contrat/all">Voir mes contrats</a>
     </div>
     <?php return; ?>
 <?php endif; ?>
-
-<form method="get" action="<?= $e($base) ?>Consommation/add" class="carte formulaire">
-    <label for="id_contrat">Contrat à relever *</label>
-    <select class="champ" id="id_contrat" name="id_contrat" required onchange="this.form.submit()">
-        <?php foreach ($contrats as $c): ?>
-            <option value="<?= (int) $c['id'] ?>"<?= $contrat !== null && (int) $contrat['id'] === (int) $c['id'] ? ' selected' : '' ?>>
-                Contrat #<?= (int) $c['id'] ?> — <?= $e($c['quartier']) ?> · Eau <?= $e($c['num_compteur_eau'] ?: '—') ?> · Électricité <?= $e($c['num_compteur_elec'] ?: '—') ?>
-            </option>
-        <?php endforeach; ?>
-    </select>
-    <noscript><button class="btn-secondaire" type="submit">Choisir ce contrat</button></noscript>
-</form>
 
 <?php if (!$ouverte): ?>
     <div class="carte">
@@ -51,9 +40,33 @@ $compteurs = [
     <?php return; ?>
 <?php endif; ?>
 
+<?php /* Un client peut avoir plusieurs contrats : on choisit celui sur lequel on saisit. */ ?>
+<?php if (count($contrats) > 1): ?>
+    <form method="get" action="<?= $e($base) ?>Consommation/add" class="carte formulaire">
+        <label for="id_contrat">Contrat à relever *</label>
+        <select class="champ" id="id_contrat" name="id_contrat" required onchange="this.form.submit()">
+            <?php foreach ($contrats as $ct): ?>
+                <option value="<?= (int) $ct['id'] ?>"<?= (int) $ct['id'] === (int) $contrat['id'] ? ' selected' : '' ?>>
+                    Contrat n°<?= (int) $ct['id'] ?> — <?= $e($ct['quartier']) ?>
+                    · Eau <?= $e($ct['num_compteur_eau'] ?: '—') ?> · Électricité <?= $e($ct['num_compteur_elec'] ?: '—') ?>
+                    <?= !empty($saisiMois[(int) $ct['id']]) ? ' ✓ saisi ce mois-ci' : '' ?>
+                </option>
+            <?php endforeach; ?>
+        </select>
+        <noscript><button class="btn-secondaire" type="submit">Choisir ce contrat</button></noscript>
+    </form>
+<?php endif; ?>
+<div class="carte">
+    <p>
+        <strong>Contrat n°<?= (int) $contrat['id'] ?></strong> —
+        quartier <?= $e($contrat['quartier']) ?> (<?= $e($contrat['type_activite']) ?>)
+        · compteurs <?= $e($contrat['num_compteur_eau']) ?> / <?= $e($contrat['num_compteur_elec']) ?>
+    </p>
+</div>
+
 <?php if ($dejaSaisi): ?>
     <div class="carte">
-        <p>Vous avez déjà saisi votre consommation pour ce mois</p>
+        <p>Vous avez déjà saisi votre consommation pour ce mois (contrat n°<?= (int) $contrat['id'] ?>)</p>
         <a class="btn-principal" href="<?= $e($base) ?>Consommation/all">Voir mon historique</a>
     </div>
     <?php return; ?>
@@ -61,10 +74,6 @@ $compteurs = [
 
 <form method="post" action="" enctype="multipart/form-data" id="form-saisie" novalidate>
     <input type="hidden" name="id_contrat" value="<?= (int) $contrat['id'] ?>">
-    <section class="carte">
-        <h2>Contrat #<?= (int) $contrat['id'] ?> — <?= $e($contrat['quartier']) ?></h2>
-        <p>Compteur eau : <?= $e($contrat['num_compteur_eau'] ?: '—') ?> · Compteur électricité : <?= $e($contrat['num_compteur_elec'] ?: '—') ?></p>
-    </section>
     <div class="grille-2">
         <?php foreach ($compteurs as $cle => $c): ?>
             <div class="carte">
@@ -92,7 +101,7 @@ $compteurs = [
 
                 <label for="<?= $e($c['index']) ?>">Nouvel index (<?= $e($c['unite']) ?>)</label>
                 <input type="text" inputmode="decimal" class="champ" id="<?= $e($c['index']) ?>" name="<?= $e($c['index']) ?>"
-                       value="<?= $e($old[$c['index']]) ?>" placeholder="Ex : <?= $cle === 'eau' ? '1260' : '8550' ?>"
+                       value="<?= $e($old[$c['index']]) ?>" placeholder="Ex : <?= $e($nb($prec[$c['index']] + ($cle === 'eau' ? 15 : 120))) ?>"
                        data-precedent="<?= $e($prec[$c['index']]) ?>" data-unite="<?= $e($c['unite']) ?>" data-type="<?= $e($cle) ?>" required>
 
                 <label class="btn-upload" for="<?= $e($c['photo']) ?>">
@@ -112,7 +121,7 @@ $compteurs = [
 
     <p class="note-info"><i data-lucide="info"></i>
         La saisie sera vérifiée par le fournisseur si le nouvel index est inférieur au mois dernier, identique au mois dernier
-        (consommation nulle) ou s'il dépasse le seuil (<?= $e($nb($param['seuil_eau'])) ?> m³ d'eau, <?= $e($nb($param['seuil_elec'])) ?> kWh d'électricité).
+        (consommation nulle) ou s'il dépasse le seuil de ce contrat (<?= $e($nb($param['seuil_eau'])) ?> m³ d'eau, <?= $e($nb($param['seuil_elec'])) ?> kWh d'électricité).
     </p>
 
     <div class="barre-estimation">
@@ -125,20 +134,37 @@ $compteurs = [
 
 <script>
 // Estimation affichée à titre indicatif : le calcul qui compte est fait en PHP (R6, R7).
+// Le barème est celui du CONTRAT choisi (type d'activité de son quartier), fourni par PHP.
 (function () {
     var TAUX = <?= json_encode((float) $param['taux_tva']) ?>;
-    var TARIFS = <?= json_encode($tarifs, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;
-    var arrondi = function (x) { return Math.round(x * 100) / 100; };
+    var PROGRESSIF = <?= json_encode(defined('CALCUL_PROGRESSIF') && CALCUL_PROGRESSIF) ?>;
+    var BAREME = <?= json_encode($tranches, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_AMP | JSON_HEX_QUOT) ?>;     // {eau: [[borneMax|null, prix], ...], elec: [...]}
+    var TARIFS = {};
+    ['eau', 'elec'].forEach(function (t) {
+        TARIFS[t] = (BAREME[t] || []).map(function (l) { return [l[0] === null ? Infinity : l[0], l[1]]; });
+    });
+
+    // Arrondi à 2 décimales comme PHP round() : toPrecision(12) absorbe l'erreur binaire (ex. 39,825 -> 39,83).
+    var arrondi = function (x) { return Math.round(parseFloat((x * 100).toPrecision(12))) / 100; };
     var fmt = function (x) { return x.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
 
     function montant(conso, type) {
-        if (conso <= 0) { return 0; }
-        for (var i = 0; i < TARIFS[type].length; i++) {
-            if (TARIFS[type][i][0] === null || conso <= TARIFS[type][i][0]) {
-                return arrondi(conso * TARIFS[type][i][1]);
+        if (conso <= 0 || !TARIFS[type].length) { return 0; }
+        var t = TARIFS[type], i;
+        if (!PROGRESSIF) {                          // R6 : prix de la tranche appliqué à toute la consommation
+            for (i = 0; i < t.length; i++) {
+                if (conso <= t[i][0]) { return arrondi(conso * t[i][1]); }
             }
+            return 0;
         }
-        return 0;
+        var total = 0, min = 0;                     // calcul progressif : chaque tranche à son prix
+        for (i = 0; i < t.length; i++) {
+            var haut = Math.min(conso, t[i][0]);
+            if (haut > min) { total += (haut - min) * t[i][1]; }
+            if (conso <= t[i][0]) { break; }
+            min = t[i][0];
+        }
+        return arrondi(total);
     }
 
     function maj() {
@@ -152,6 +178,7 @@ $compteurs = [
             sortie.textContent = fmt(conso) + ' ' + input.dataset.unite;
             ht += montant(conso, type);
         });
+        ht = arrondi(ht);
         var tva = arrondi(ht * TAUX);
         document.getElementById('est_ht').textContent  = fmt(ht) + ' DH';
         document.getElementById('est_tva').textContent = fmt(tva) + ' DH';
