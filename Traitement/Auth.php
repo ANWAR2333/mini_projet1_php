@@ -1,12 +1,13 @@
 <?php
 declare(strict_types=1);
 
-
+// Fonction de verification des roles
 function verifierRole(string $role): void
 {
     $actuel = $_SESSION['role'] ?? null;
     $autorise = ($role === 'connecte') ? ($actuel !== null) : ($actuel === $role);
 
+    // Redirection vers la page correspondante
     if (!$autorise) {
         rediriger(
             'Auth/login',
@@ -16,6 +17,7 @@ function verifierRole(string $role): void
     }
 }
 
+// Fonction de redirection
 function rediriger(string $route, string $message = '', string $type = 'succes'): void
 {
     if ($message !== '') {
@@ -25,7 +27,7 @@ function rediriger(string $route, string $message = '', string $type = 'succes')
     exit;
 }
 
-
+// Fonction d'affichage des données et des vues
 function afficherVue(string $vue, array $donnees = []): void
 {
     $fichier = __DIR__ . '/../IHM/' . $vue;

@@ -1,5 +1,6 @@
 <?php
 
+// Insertion des anomalies
 function bdAnomalieInsert(int $idConso, string $service, string $type, float $indexPrecedent, float $indexSaisi): int
 {
     $pdo = getConnexion();
@@ -11,6 +12,7 @@ function bdAnomalieInsert(int $idConso, string $service, string $type, float $in
     return (int) $pdo->lastInsertId();
 }
 
+// Selection des anomalies depuis la base de données selon la consommation
 function bdAnomalieByConso(int $idConso): array
 {
     $st = getConnexion()->prepare('SELECT * FROM anomalie WHERE id_consommation = ? ORDER BY id');
@@ -18,6 +20,7 @@ function bdAnomalieByConso(int $idConso): array
     return $st->fetchAll();
 }
 
+// Selection des anomalies depuis la base de données selon le client
 function bdAnomalieByClient(int $idClient): array
 {
     $st = getConnexion()->prepare(
