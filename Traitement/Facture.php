@@ -120,7 +120,16 @@ function factureGenerer(int $idConso): int
 function factureAll(): void
 {
     verifierRole('client');
-    $factures = bdFactureByClient((int) $_SESSION['id']);
+    $idClient = (int) $_SESSION['id'];
+
+    // Filtre optionnel ?id_contrat= : on ignore une valeur qui n'appartient pas au client,
+    // au lieu de planter ou de montrer les factures de quelqu'un d'autre.
+    $idContrat = isset($_GET['id_contrat']) ? (int) $_GET['id_contrat'] : null;
+    if ($idContrat !== null && !bdContratAppartient($idContrat, $idClient)) {
+        $idContrat = null;
+    }
+
+    $factures = bdFactureByClient($idClient, $idContrat);
 
     $totalImpaye = 0.0;
     foreach ($factures as $f) {
@@ -133,6 +142,8 @@ function factureAll(): void
         'titre'       => 'Mes Factures',
         'factures'    => $factures,
         'totalImpaye' => $totalImpaye,
+        'contrats'    => bdContratsByClient($idClient),
+        'idContrat'   => $idContrat,
     ]);
 }
 
