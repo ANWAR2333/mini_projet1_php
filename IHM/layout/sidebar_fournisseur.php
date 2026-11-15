@@ -2,11 +2,15 @@
 $entiteCourante = $GLOBALS['routeCourante']['entite'] ?? '';
 $actionCourante = $GLOBALS['routeCourante']['action'] ?? '';
 $menu = [
-    ['Tableau de Bord','layout-dashboard','Auth/bientot/tableau-de-bord', false],
-    ['Clients',        'users',           'Client/all',                   $entiteCourante === 'Client'],
-    ['Anomalies',      'circle-alert',    'Auth/bientot/anomalies',       false],
-    ['Réclamations',   'message-square',  'Auth/bientot/reclamations',    false],
-    ['Factures',       'receipt',         'Facture/admin',                in_array($entiteCourante, ['Facture', 'Paiement'], true)],
+    ['Tableau de Bord',  'layout-dashboard', 'Dashboard/all',     $entiteCourante === 'Dashboard'],
+    ['Clients',          'users',            'Client/all',        in_array($entiteCourante, ['Client', 'Contrat'], true)],
+    ['Quartiers',        'map-pin',          'Quartier/all',      $entiteCourante === 'Quartier'],
+    ['Types d\'activité','layers',           'TypeActivite/all',  in_array($entiteCourante, ['Typeactivite', 'Tranche'], true)],
+    ['Anomalies',        'circle-alert',     'Anomalie/all',      $entiteCourante === 'Anomalie'],
+    ['Réclamations',     'message-square',   'Reclamation/admin', $entiteCourante === 'Reclamation'],
+    ['Factures',         'receipt',          'Facture/admin',     in_array($entiteCourante, ['Facture', 'Paiement'], true)],
+    ['Relevé annuel',    'calendar-check',   'Annuelle/import',   $entiteCourante === 'Annuelle'],
+    ['Paramètres',       'settings',         'Parametre/update',  $entiteCourante === 'Parametre'],
 ];
 ?>
 <aside class="sidebar">

@@ -15,14 +15,26 @@ require_once __DIR__ . '/Traitement/Auth.php';
 
 
 const ROUTES = [
-    'Auth'        => ['login', 'logout', 'bientot'],
-    'Client'      => ['all', 'one', 'add', 'update', 'delete'],
-    'Consommation'=> ['add', 'all'],
-    'Facture'     => ['all', 'one', 'pdf', 'admin'],
-    'Paiement'    => ['add'],
+    'Auth'         => ['login', 'logout', 'bientot'],
+    'Client'       => ['all', 'one', 'add', 'update', 'delete'],
+    'Consommation' => ['add', 'all'],
+    'Facture'      => ['all', 'one', 'pdf', 'admin'],
+    'Paiement'     => ['add'],
+    // --- Phase 2 (contrats, quartiers, types d'activité) : noms publiés par Souraya ---
+    'Quartier'     => ['all', 'add', 'update', 'delete'],
+    'Typeactivite' => ['all', 'add', 'update', 'delete', 'one'],   // URL : TypeActivite/all (la casse est ignorée)
+    'Tranche'      => ['add', 'update', 'delete'],
+    'Contrat'      => ['add', 'update', 'resilier'],
+    'Anomalie'     => ['all', 'one'],
+    'Reclamation'  => ['add', 'all', 'admin', 'one'],
+    'Notification' => ['all', 'read'],
+    'Dashboard'    => ['all'],
+    'Parametre'    => ['update'],
+    'Annuelle'     => ['import', 'verification'],
 ];
 
-const PREFIXES = ['Consommation' => 'conso'];
+// ATTENTION : la clé est le nom de l'entité APRÈS ucfirst(strtolower()) : 'Typeactivite', pas 'TypeActivite'.
+const PREFIXES = ['Consommation' => 'conso', 'Typeactivite' => 'typeActivite'];
 
 function afficher404(): void
 {
@@ -54,7 +66,11 @@ foreach (['BD', 'Traitement'] as $dossier) {
 
 $fonction = (PREFIXES[$entite] ?? strtolower($entite)) . ucfirst($action);
 if (!function_exists($fonction)) {
-    afficher404();
+    // Route déclarée mais fonction pas encore écrite (module d'un autre membre) :
+    // page d'attente qui indique le nom exact de la fonction attendue.
+    verifierRole('connecte');
+    afficherVue('bientot.php', ['titre' => 'Bientôt disponible', 'module' => 'Cette page', 'fonction' => $fonction . '()']);
+    exit;
 }
 
 $rf   = new ReflectionFunction($fonction);

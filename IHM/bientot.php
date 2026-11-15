@@ -5,3 +5,6 @@
     <p class="sous-titre"><?= htmlspecialchars($module ?? 'Cette page', ENT_QUOTES, 'UTF-8') ?> sera disponible dans une prochaine version.</p>
   </div>
 </header>
+<?php if (!empty($fonction)): ?>
+  <section class="carte"><p>Fonction attendue par le routeur : <strong><?= htmlspecialchars($fonction, ENT_QUOTES, 'UTF-8') ?></strong></p></section>
+<?php endif; ?>

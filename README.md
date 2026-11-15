@@ -1,8 +1,8 @@
 # eco house. — Gestion des factures d'eau et d'électricité
 
-Mini-projet PHP (ENSA Tétouan, Génie Informatique) — **version alpha**.
+Mini-projet PHP (ENSA Tétouan, Génie Informatique) — **version alpha + phase 2 (contrats, quartiers, types d'activité)**.
 PHP 8 · MySQL (PDO) · architecture mini-MVC du TP visiteurs · XAMPP.
-Référence : *Cahier des charges – Version alpha* (à respecter à la lettre).
+Référence : *Cahier des charges – Version alpha* + énoncé du TP + ajout du prof (table quartier, plusieurs contrats par client, quartier associé à un type d'activité).
 
 ## 1. Installation (chaque membre, une seule fois)
 
@@ -13,7 +13,7 @@ Référence : *Cahier des charges – Version alpha* (à respecter à la lettre)
    git clone <URL-DU-DEPOT> gestion_factures
    ```
 3. Ouvrir http://localhost/phpmyadmin → onglet **Importer** → choisir `gestion_factures.sql` → **Importer**.
-   Le script crée la base `gestion_factures` (11 tables) et les données de test. Il peut être ré-importé à tout moment pour tout remettre à zéro.
+   Le script crée la base `gestion_factures` (15 tables) et les données de test. Il peut être ré-importé à tout moment pour tout remettre à zéro.
 4. Ouvrir http://localhost/gestion_factures/
 
 > Si les pages donnent une erreur 404 : vérifier que `mod_rewrite` est actif et que `AllowOverride All` est réglé pour `htdocs` (valeur par défaut de XAMPP).
@@ -26,7 +26,7 @@ Référence : *Cahier des charges – Version alpha* (à respecter à la lettre)
 | Fournisseur | fournisseur@ecohouse.ma | `Four#2026` |
 | Clients | salma@gmail.com · youssef@gmail.com · nadia@gmail.com · khadija@gmail.com · mouad@gmail.com | `Client#2026` |
 
-Chaque client a une consommation et une facture de **septembre 2026** (la facture de Salma est payée, les autres impayées).
+Chaque client a un contrat, une consommation et une facture de **septembre 2026** (Salma a un 2e contrat commercial à Souk Jdid ; Mouad a un ancien contrat résilié) (la facture de Salma est payée, les autres impayées).
 Index de septembre, pour préparer la saisie d'octobre :
 
 | Client | Index eau | Index élec. | Octobre à saisir pour le test |
@@ -66,6 +66,54 @@ Le routeur déduit la fonction de l'URL : `Client/all` → `clientAll()`. Seule 
 Une route absente de la constante `ROUTES` d'`index.php` donne la page 404 : **pour ajouter une route, demander à Souraya**.
 Les entiers de l'URL (`{id}`) sont passés à la fonction si son premier paramètre est de type `int`.
 
+
+### Routes de la phase 2
+
+| URL | Fonction | Rôle | Propriétaire |
+|---|---|---|---|
+| `Quartier/all` · `add` · `update/{id}` · `delete/{id}` | `quartierAll()` · `quartierAdd()` · `quartierUpdate(int $id)` · `quartierDelete(int $id)` | fournisseur | Souraya (fait) |
+| `TypeActivite/all` · `add` · `update/{id}` · `delete/{id}` · `one/{id}` | `typeActiviteAll()` … | fournisseur | Anwar |
+| `Tranche/add/{idType}` · `update/{id}` · `delete/{id}` | `trancheAdd(int $idType)` … | fournisseur | Anwar |
+| `Contrat/add/{idClient}` · `update/{id}` · `resilier/{id}` | `contratAdd(int $idClient)` · `contratUpdate(int $id)` · `contratResilier(int $id)` | fournisseur | Anwar |
+| `Anomalie/all` · `Anomalie/one/{id}` | `anomalieAll()` · `anomalieOne(int $id)` | fournisseur | Amal |
+| `Reclamation/add` · `all` (client) ; `admin` · `one/{id}` (fournisseur) | `reclamationAdd()` · `reclamationAll()` · `reclamationAdmin()` · `reclamationOne(int $id)` | client / fournisseur | Chaimaa |
+| `Notification/all` · `Notification/read/{id}` | `notificationAll()` · `notificationRead(int $id)` | client | Farah |
+| `Dashboard/all` | `dashboardAll()` | fournisseur | Souraya (fait) |
+| `Parametre/update` | `parametreUpdate()` | fournisseur | Souraya (fait) : TVA + seuils par type |
+| `Annuelle/import` · `Annuelle/verification` | `annuelleImport()` · `annuelleVerification()` | fournisseur | Souraya (fait) |
+
+- Une route déclarée dont la fonction n'existe pas encore affiche la page « Bientôt disponible » **avec le nom exact de la fonction attendue**.
+- `TypeActivite` : le routeur met l'entité en `Typeactivite` (`ucfirst(strtolower())`) ; la clé de `ROUTES` et de `PREFIXES` est donc `'Typeactivite'`, et la fonction s'appelle `typeActiviteAll()`.
+
+### Fonctions communes sur les contrats (`BD/Contrat.php`)
+
+```php
+bdContratsByClient(int $idClient): array            // tous les contrats, avec 'quartier' et 'type_activite'
+bdContratOne(int $id): array                        // idem pour un contrat ([] si introuvable)
+bdContratAppartient(int $idContrat, int $idClient): bool   // à tester pour TOUT accès d'un client à un contrat
+bdContratEstActif(int $idContrat): bool             // à tester en plus pour la SAISIE (pas pour consulter une facture)
+bdContratsActifsByClient(int $idClient): array      // pour la liste déroulante de la saisie
+bdContratSeuils(int $idContrat): array              // ['seuil_eau', 'seuil_elec'] du type d'activité du contrat
+bdContratTranches(int $idContrat): array            // ['eau' => [[borne|null, prix], ...], 'elec' => [...]]  (même format que l'ancienne constante TRANCHES)
+```
+
+### Règles de la phase 2
+
+- Un client a 1 ou plusieurs **contrats** ; chaque contrat est dans un **quartier** ; chaque quartier a un **type d'activité** (résidentiel, commercial, industriel).
+- Le **type d'activité** fixe le barème (`tranche_tarif`) et les seuils d'anomalie (`type_activite.seuil_eau/seuil_elec`, modifiables dans *Paramètres*). **Hypothèse de l'équipe** : le barème résidentiel est celui de l'énoncé ; les barèmes commercial et industriel sont inventés (à confirmer avec l'encadrant).
+- Tarification : le prix de la tranche s'applique à **toute** la consommation (pas de calcul progressif) : première tranche telle que consommation ≤ `borne_max`.
+- Saisie, facture et relevé annuel passent par le **contrat** (`id_contrat`). Une saisie par contrat et par mois. Un contrat **résilié** n'est jamais supprimé (statut + `date_fin`) : on ne peut plus saisir dessus, mais ses factures restent consultables.
+- Les montants `montant_eau` / `montant_elec` sont **enregistrés** dans la facture (plus de recalcul à l'affichage).
+- Migration additive : les anciennes colonnes de `client` (compteurs, index initiaux) et `id_client` des tables `consommation` / `facture` sont conservées pour que le code existant continue de marcher ; elles seront nettoyées à la fin. `id_client` doit toujours être égal à celui du contrat.
+- **Relevé annuel** : l'agent dépose `depot/Consommation_Annuelle.txt` (`ID_Contrat;ID_Agent;ConsommationEau;ConsommationElect;Annee;Date_Saisie`, exemple dans `dev/Consommation_Annuelle.exemple.txt`). L'import est automatique (ouverture du tableau de bord ou de *Relevé annuel*, ou tâche planifiée `php dev/import_annuel.php`) ; le fichier est ensuite archivé dans `depot/traites/`.
+
+### Tests sans navigateur
+
+```
+php dev/test_calcul.php        calcul par tranches (sans base)
+php dev/test_contrats.php      contrats, quartiers, barèmes (après import du SQL)
+```
+
 ## 4. Fonctions communes (Traitement/Auth.php)
 
 ```php
@@ -97,7 +145,8 @@ Pas de style dans les vues et pas d'autre feuille CSS.
 ## 6. Git
 
 - `main` est protégée : on ne pousse jamais dessus directement.
-- Une branche par module : `feature/clients` · `feature/saisie` · `feature/factures-client` · `feature/factures-fournisseur`.
+- Une branche par module. Phase 2 : `feature/schema-contrats` (Souraya) · `feature/notifications` puis `feature/factures-tranches` (Farah) · `feature/types-quartiers-contrats` (Anwar) · `feature/saisie-contrat` puis `feature/anomalies` (Amal) · `feature/reclamations` (Chaimaa). Toujours créer sa branche depuis un `main` à jour.
+- Après chaque fusion dans `main` : **ré-importer `gestion_factures.sql`** dans phpMyAdmin.
 - Commits courts en français (« Ajout du calcul par tranches »), au moins un par jour de travail.
 
 ```

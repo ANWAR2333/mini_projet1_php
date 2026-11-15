@@ -9,3 +9,8 @@ uploads/*
 .DS_Store
 Thumbs.db
 *.log
+
+# Fichiers annuels déposés par l'agent (on garde le dossier et sa protection)
+depot/*
+!depot/.gitkeep
+!depot/.htaccess

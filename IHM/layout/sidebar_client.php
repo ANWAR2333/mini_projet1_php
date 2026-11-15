@@ -3,8 +3,8 @@ $entiteCourante = $GLOBALS['routeCourante']['entite'] ?? '';
 $menu = [
     ['Consommation', 'gauge',          'Consommation/add',            $entiteCourante === 'Consommation'],
     ['Mes Factures', 'file-text',      'Facture/all',                 $entiteCourante === 'Facture'],
-    ['Réclamations', 'message-square', 'Auth/bientot/reclamations',   false],
-    ['Notifications','bell',           'Auth/bientot/notifications',  false],
+    ['Réclamations', 'message-square', 'Reclamation/all',             $entiteCourante === 'Reclamation'],
+    ['Notifications','bell',           'Notification/all',            $entiteCourante === 'Notification'],
 ];
 ?>
 <aside class="sidebar">
