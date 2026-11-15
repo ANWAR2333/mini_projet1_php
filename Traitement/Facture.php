@@ -175,7 +175,7 @@ function factureOne(int $id): void
 
 //  Factures côté fournisseur 
 
-/** Route Facture/admin : toutes les factures, filtre ?statut=impayee|payee. */
+/** Route Facture/admin : toutes les factures, filtres ?statut= &quartier= &type=. */
 function factureAdmin(): void
 {
     verifierRole('fournisseur');
@@ -184,16 +184,35 @@ function factureAdmin(): void
     if (!in_array($statut, ['impayee', 'payee'], true)) {
         $statut = null;
     }
+    // Un id invalide ou vide = pas de filtre
+    $idQuartier = filter_var($_GET['quartier'] ?? '', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+    $idType     = filter_var($_GET['type'] ?? '',     FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
 
+    // Total des impayés : toujours sur toutes les factures, pas seulement les filtrées
     $totalImpaye = 0.0;
     foreach (bdFactureAll('impayee') as $f) {
         $totalImpaye += (float) $f['montant_ttc'];
     }
 
+    $factures = bdFactureAll($statut, $idQuartier, $idType);
+
+    // Historique des paiements des factures payées
+    $paiements = [];
+    foreach ($factures as $f) {
+        if ($f['statut'] === 'payee') {
+            $paiements[(int) $f['id']] = bdPaiementByFacture((int) $f['id']);
+        }
+    }
+
     afficherVue('facture/index_fournisseur.php', [
         'titre'       => 'Factures',
-        'factures'    => bdFactureAll($statut),
+        'factures'    => $factures,
+        'paiements'   => $paiements,
         'statut'      => $statut,
+        'idQuartier'  => $idQuartier,
+        'idType'      => $idType,
+        'quartiers'   => bdQuartierAll(),
+        'types'       => bdTypeActiviteAll(),
         'totalImpaye' => $totalImpaye,
     ]);
 }
