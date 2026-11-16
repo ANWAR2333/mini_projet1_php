@@ -27,7 +27,11 @@ function annuelleImporterAuto(): ?array
     }
 
     $rapport = ['importes' => 0, 'ignores' => 0, 'erreurs' => []];
-    $lignes  = file($chemin, FILE_IGNORE_NEW_LINES) ?: [];
+    $lignes = file($chemin, FILE_IGNORE_NEW_LINES);
+    if ($lignes === false) {
+        $rapport['erreurs'][] = 'Le fichier annuel existe mais ne peut pas être lu.';
+        return $rapport;
+    }
 
     foreach ($lignes as $i => $ligne) {
         $ligne = trim(preg_replace('/^\xEF\xBB\xBF/', '', $ligne));
@@ -51,10 +55,13 @@ function annuelleImporterAuto(): ?array
     }
 
     $archive = ANNUELLE_DOSSIER . 'traites/';
-    if (!is_dir($archive)) {
-        mkdir($archive, 0755, true);
+    if (!is_dir($archive) && !mkdir($archive, 0755, true) && !is_dir($archive)) {
+        $rapport['erreurs'][] = 'Le dossier d’archivage des relevés annuels ne peut pas être créé.';
+        return $rapport;
     }
-    rename($chemin, $archive . 'Consommation_Annuelle_' . date('Ymd_His') . '.txt');
+    if (!rename($chemin, $archive . 'Consommation_Annuelle_' . date('Ymd_His') . '.txt')) {
+        $rapport['erreurs'][] = 'Le relevé a été traité mais ne peut pas être archivé.';
+    }
 
     return $rapport;
 }
@@ -134,7 +141,9 @@ function annuelleImport(): void
         if (!is_dir(ANNUELLE_DOSSIER)) {
             mkdir(ANNUELLE_DOSSIER, 0755, true);
         }
-        move_uploaded_file($f['tmp_name'], ANNUELLE_DOSSIER . ANNUELLE_FICHIER);
+        if (!move_uploaded_file($f['tmp_name'], ANNUELLE_DOSSIER . ANNUELLE_FICHIER)) {
+            rediriger('Annuelle/import', 'Le fichier n’a pas pu être enregistré dans le dépôt.', 'erreur');
+        }
     }
 
     $rapport = annuelleImporterAuto();   // import AUTOMATIQUE : dès qu'un fichier est présent

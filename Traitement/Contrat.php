@@ -57,15 +57,22 @@ function contratValider(array $donnees): array
         }
     }
 
-    if (!preg_match('/^\d{4}-\d{2}-\d{2}$/', $donnees['date_debut'] ?? '')) {
-        $erreurs[] = 'La date de début est obligatoire et doit être au format YYYY-MM-DD.';
+    $dateDebutBrute = (string) ($donnees['date_debut'] ?? '');
+    $dateDebut = DateTime::createFromFormat('!Y-m-d', $dateDebutBrute);
+    if (!$dateDebut || $dateDebut->format('Y-m-d') !== $dateDebutBrute) {
+        $erreurs[] = 'La date de début est obligatoire et doit être une date valide.';
     }
 
-    if (($donnees['date_fin'] ?? '') !== '' && !preg_match('/^\d{4}-\d{2}-\d{2}$/', $donnees['date_fin'])) {
-        $erreurs[] = 'La date de fin doit être vide ou au format YYYY-MM-DD.';
+    $dateFinBrute = (string) ($donnees['date_fin'] ?? '');
+    $dateFin = null;
+    if ($dateFinBrute !== '') {
+        $dateFin = DateTime::createFromFormat('!Y-m-d', $dateFinBrute);
+        if (!$dateFin || $dateFin->format('Y-m-d') !== $dateFinBrute) {
+            $erreurs[] = 'La date de fin doit être vide ou une date valide.';
+        }
     }
 
-    if (($donnees['date_fin'] ?? '') !== '' && $donnees['date_debut'] > $donnees['date_fin']) {
+    if ($dateDebut && $dateFin && $dateDebut > $dateFin) {
         $erreurs[] = 'La date de fin doit être postérieure à la date de début.';
     }
 
@@ -74,7 +81,12 @@ function contratValider(array $donnees): array
     }
 
     foreach (['index_initial_eau', 'index_initial_elec'] as $champ) {
-        if ($donnees[$champ] === '' || !is_numeric($donnees[$champ]) || (float) $donnees[$champ] < 0) {
+        if (
+            $donnees[$champ] === ''
+            || !is_numeric($donnees[$champ])
+            || (float) $donnees[$champ] < 0
+            || (float) $donnees[$champ] > 99999999.99
+        ) {
             $erreurs[] = 'Les index initiaux sont obligatoires et doivent être positifs.';
             break;
         }
@@ -156,6 +168,13 @@ function contratUpdate(int $id): void
     $contrat = bdContratOne($id);
     if (!$contrat) {
         afficher404();
+    }
+    if ($contrat['statut'] !== 'actif' || bdContratAReleves($id)) {
+        rediriger(
+            'Client/one/' . (int) $contrat['id_client'],
+            'Ce contrat a été résilié ou comporte des relevés ; ses informations ne peuvent plus être modifiées.',
+            'erreur'
+        );
     }
 
     $client = bdClientOne((int) $contrat['id_client']);

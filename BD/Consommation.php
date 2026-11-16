@@ -99,8 +99,6 @@ function bdConsoByContrat(int $idContrat): array
             FROM consommation c
             LEFT JOIN contrat ct ON ct.id = c.id_contrat
             LEFT JOIN quartier q ON q.id = ct.id_quartier
-            WHERE c.id_client = ?
-            ORDER BY c.id_contrat ASC, c.annee ASC, c.mois ASC';
             WHERE c.id_contrat = ?
             ORDER BY c.annee ASC, c.mois ASC';
     $st = getConnexion()->prepare($sql);

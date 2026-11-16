@@ -23,8 +23,6 @@ function bdClientAll(): array
 // Recherche un client par son identifiant, ou retourne un tableau vide.
 function bdClientOne(int $id): array
 {
-    $sql = 'SELECT id, nom, prenom, adresse, telephone, email,
-                    date_creation
     $sql = 'SELECT id, nom, prenom, adresse, telephone, email, date_creation
             FROM client
             WHERE id = ?';

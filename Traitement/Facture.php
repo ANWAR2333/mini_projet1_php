@@ -80,6 +80,12 @@ function factureGenerer(int $idConso): int
         throw new RuntimeException('La consommation ne correspond à aucun contrat.');
     }
     $idContrat = (int) $c['id_contrat'];
+    if (!bdContratAppartient($idContrat, (int) $c['id_client'])) {
+        throw new RuntimeException('Le contrat et le client de la consommation ne correspondent pas.');
+    }
+    if (!in_array($c['statut'], ['normale', 'corrigee'], true)) {
+        throw new RuntimeException('Une consommation en anomalie ne peut pas encore être facturée.');
+    }
     $prec = bdConsoPrecedente($idContrat, (int) $c['mois'], (int) $c['annee']);
     $p = bdParametreGet();
 
@@ -226,6 +232,14 @@ function facturePdf(int $id): void
     if (!$f || ($_SESSION['role'] === 'client' && (int) $f['id_client'] !== (int) $_SESSION['id'])) {
         afficher404();
     }
+
+    $tarifs = !empty($f['id_contrat']) ? bdContratTranches((int) $f['id_contrat']) : null;
+    $f['montant_eau'] = $f['montant_eau'] !== null
+        ? (float) $f['montant_eau']
+        : calculerMontant((float) $f['conso_eau'], 'eau', $tarifs);
+    $f['montant_elec'] = $f['montant_elec'] !== null
+        ? (float) $f['montant_elec']
+        : calculerMontant((float) $f['conso_elec'], 'elec', $tarifs);
 
     require_once __DIR__ . '/../lib/fpdf/fpdf.php';
 

@@ -16,11 +16,12 @@ $f        = $facture;
 
 <section class="carte">
   <p><strong>Client :</strong> <?= $e($f['prenom'] . ' ' . $f['nom']) ?></p>
-  <p><strong>Contrat :</strong> #<?= (int) $f['id_contrat'] ?><?= !empty($f['quartier']) ? ' · ' . $e($f['quartier']) : '' ?></p>
   <p><strong>Période :</strong> <?= $moisNoms[(int) $f['mois'] - 1] . ' ' . (int) $f['annee'] ?></p>
   <?php if (!empty($f['contrat_numero'])): ?>
     <p><strong>Contrat :</strong> #<?= (int) $f['contrat_numero'] ?> · <?= $e($f['quartier'] ?? '') ?></p>
     <p><strong>Compteurs :</strong> Eau <?= $e($f['num_compteur_eau'] ?: '—') ?> · Électricité <?= $e($f['num_compteur_elec'] ?: '—') ?></p>
+  <?php else: ?>
+    <p><strong>Contrat :</strong> Ancien relevé</p>
   <?php endif; ?>
 
   <form class="formulaire" method="post" action="<?= BASE_URL ?>Paiement/add/<?= (int) $f['id'] ?>">

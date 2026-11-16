@@ -106,7 +106,18 @@ function consoPhotoSupprimer(?string $chemin): void
  */
 function consoContratChoisi(array $contratsActifs, int $idClient, int $mois, int $annee): int
 {
-    $demande = (int) ($_POST['id_contrat'] ?? $_GET['id_contrat'] ?? 0);
+    $brut = $_POST['id_contrat'] ?? $_GET['id_contrat'] ?? null;
+    if ($brut !== null && $brut !== '') {
+        $idValide = is_scalar($brut)
+            ? filter_var($brut, FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]])
+            : false;
+        if ($idValide === false) {
+            afficher404();
+        }
+        $demande = (int) $idValide;
+    } else {
+        $demande = 0;
+    }
 
     if ($demande > 0) {
         if (!bdContratAppartient($demande, $idClient)) {

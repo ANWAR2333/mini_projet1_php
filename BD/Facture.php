@@ -25,7 +25,6 @@ function bdFactureInsert(string $numero, int $idClient, int $idConso, string $da
         ':date_facture' => $dateFacture, ':periode' => $periode,
         ':conso_eau' => $consoEau, ':conso_elec' => $consoElec,
         ':montant_eau' => $montantEau, ':montant_elec' => $montantElec,
-        ':id_contrat' => $idContrat,
         ':ht' => $ht, ':tva' => $tva, ':ttc' => $ttc,
     ]);
     return (int) $pdo->lastInsertId();
