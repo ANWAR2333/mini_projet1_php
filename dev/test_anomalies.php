@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../Traitement/Consommation.php';
+require __DIR__ . '/../Traitement/Anomalie.php';
 
 $param = ['seuil_eau' => 50.0, 'seuil_elec' => 500.0, 'taux_tva' => 0.18];
 $prec  = ['index_eau' => 1245.0, 'index_elec' => 8430.0];
@@ -36,6 +37,17 @@ verifier('Commercial : 2001 kWh depasse le seuil',       $prec, 1260, 10431, $co
 verifier('Industriel : 600 m3 et 5000 kWh = normal',     $prec, 1845, 13430, $industriel, []);
 verifier('Industriel : 1001 m3 depasse le seuil',        $prec, 2246,  8550, $industriel, ['eau:depasse_seuil']);
 verifier('Residentiel : les memes 600 m3 sont une anomalie', $prec, 1845, 8550, $param, ['eau:depasse_seuil']);
+
+// Controle de l'index corrige par le fournisseur (anomalieErreurIndex)
+$anom = ['index_precedent' => '1245.00'];
+foreach ([['corrige valide (1260)',                         1260.0, true],
+          ['corrige egal au precedent = accepte (conso nulle confirmee)', 1245.0, true],
+          ['corrige inferieur au precedent = refuse',       1200.0, false],
+          ['corrige vide / invalide (null) = refuse',       null,   false]] as [$nom, $idx, $attendu]) {
+    $ok = (anomalieErreurIndex($anom, $idx) === '') === $attendu;
+    if (!$ok) { $echecs++; }
+    printf("%-52s %s\n", mb_strimwidth($nom, 0, 52), $ok ? 'OK' : 'ECHEC');
+}
 
 foreach ([['1260', 1260.0], ['1 260,5', 1260.5], ['abc', null], ['-5', null], ['', null], ['0', 0.0]] as [$in, $out]) {
     $r = consoNombre($in);
