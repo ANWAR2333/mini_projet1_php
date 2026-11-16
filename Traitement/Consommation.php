@@ -176,6 +176,8 @@ function consoAdd(): void
     $prec      = bdConsoPrecedente($idContrat, $mois, $annee);
     // Seuils du TYPE D'ACTIVITÉ du contrat ; la TVA reste celle de la table parametre.
     $param     = bdContratSeuils($idContrat) + ['taux_tva' => bdParametreGet()['taux_tva']];
+    // Barème du type d'activité du contrat : contrôlé avant l'enregistrement et utilisé par l'estimation JavaScript.
+    $tranches  = bdContratTranches($idContrat);
     $erreurs   = [];
     $old       = ['index_eau' => '', 'index_elec' => ''];
 
@@ -266,7 +268,7 @@ function consoAdd(): void
         'prec'        => $prec,
         'nomMoisPrec' => $prec['mois'] ? consoNomMois($prec['mois']) : '',
         'param'       => $param,
-        'tranches'    => bdContratTranches($idContrat),   // barème du contrat, pour l'estimation JavaScript
+        'tranches'    => $tranches,                       // barème du contrat, pour l'estimation JavaScript
         'erreurs'     => $erreurs,
         'old'         => $old,
     ]);
