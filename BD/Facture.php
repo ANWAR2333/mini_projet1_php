@@ -89,20 +89,30 @@ function bdFactureOne(int $id): array
 
 // Chaimaa : factures côté fournisseur
 
-/** Toutes les factures avec le nom du client. $statut = null (toutes) | 'impayee' | 'payee'. */
-function bdFactureAll(?string $statut = null): array
+/** Toutes les factures. Filtres facultatifs : statut ('impayee'|'payee'), quartier, type d'activité. */
+function bdFactureAll(?string $statut = null, ?int $idQuartier = null, ?int $idType = null): array
 {
-    $sql = "SELECT f.id, f.numero, f.id_contrat, q.nom AS quartier,
+    $sql = "SELECT f.id, f.numero, f.id_contrat, q.nom AS quartier, t.nom AS type_activite,
                    f.date_facture, f.periode, f.montant_ttc, f.statut,
                    c.nom, c.prenom
             FROM facture f
             JOIN client c ON c.id = f.id_client
-            LEFT JOIN contrat ct ON ct.id = f.id_contrat
-            LEFT JOIN quartier q ON q.id = ct.id_quartier";
+            LEFT JOIN contrat ct      ON ct.id = f.id_contrat
+            LEFT JOIN quartier q      ON q.id  = ct.id_quartier
+            LEFT JOIN type_activite t ON t.id  = q.id_type_activite
+            WHERE 1 = 1";
     $params = [];
     if ($statut !== null) {
-        $sql .= " WHERE f.statut = :statut";
+        $sql .= " AND f.statut = :statut";
         $params[':statut'] = $statut;
+    }
+    if ($idQuartier !== null) {
+        $sql .= " AND q.id = :quartier";
+        $params[':quartier'] = $idQuartier;
+    }
+    if ($idType !== null) {
+        $sql .= " AND t.id = :type";
+        $params[':type'] = $idType;
     }
     $sql .= " ORDER BY f.date_facture DESC, f.id DESC";
 

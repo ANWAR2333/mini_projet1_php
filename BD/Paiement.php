@@ -16,3 +16,14 @@ function bdPaiementInsert(int $idFacture, string $datePaiement, float $montant, 
     ]);
     return (int) $pdo->lastInsertId();
 }
+/** Paiements d'une facture, du plus récent au plus ancien. */
+function bdPaiementByFacture(int $idFacture): array
+{
+    $st = getConnexion()->prepare(
+        "SELECT id, date_paiement, montant, mode
+         FROM paiement
+         WHERE id_facture = :id
+         ORDER BY date_paiement DESC, id DESC");
+    $st->execute([':id' => $idFacture]);
+    return $st->fetchAll();
+}

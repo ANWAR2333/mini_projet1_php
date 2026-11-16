@@ -175,7 +175,7 @@ function factureOne(int $id): void
 
 //  Factures côté fournisseur 
 
-/** Route Facture/admin : toutes les factures, filtre ?statut=impayee|payee. */
+/** Route Facture/admin : toutes les factures, filtres ?statut= &quartier= &type=. */
 function factureAdmin(): void
 {
     verifierRole('fournisseur');
@@ -184,16 +184,35 @@ function factureAdmin(): void
     if (!in_array($statut, ['impayee', 'payee'], true)) {
         $statut = null;
     }
+    // Un id invalide ou vide = pas de filtre
+    $idQuartier = filter_var($_GET['quartier'] ?? '', FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
+    $idType     = filter_var($_GET['type'] ?? '',     FILTER_VALIDATE_INT, ['options' => ['min_range' => 1]]) ?: null;
 
+    // Total des impayés : toujours sur toutes les factures, pas seulement les filtrées
     $totalImpaye = 0.0;
     foreach (bdFactureAll('impayee') as $f) {
         $totalImpaye += (float) $f['montant_ttc'];
     }
 
+    $factures = bdFactureAll($statut, $idQuartier, $idType);
+
+    // Historique des paiements des factures payées
+    $paiements = [];
+    foreach ($factures as $f) {
+        if ($f['statut'] === 'payee') {
+            $paiements[(int) $f['id']] = bdPaiementByFacture((int) $f['id']);
+        }
+    }
+
     afficherVue('facture/index_fournisseur.php', [
         'titre'       => 'Factures',
-        'factures'    => bdFactureAll($statut),
+        'factures'    => $factures,
+        'paiements'   => $paiements,
         'statut'      => $statut,
+        'idQuartier'  => $idQuartier,
+        'idType'      => $idType,
+        'quartiers'   => bdQuartierAll(),
+        'types'       => bdTypeActiviteAll(),
         'totalImpaye' => $totalImpaye,
     ]);
 }
@@ -207,14 +226,6 @@ function facturePdf(int $id): void
     if (!$f || ($_SESSION['role'] === 'client' && (int) $f['id_client'] !== (int) $_SESSION['id'])) {
         afficher404();
     }
-
-    $tarifs = !empty($f['id_contrat']) ? bdContratTranches((int) $f['id_contrat']) : null;
-    $f['montant_eau'] = $f['montant_eau'] !== null
-        ? (float) $f['montant_eau']
-        : calculerMontant((float) $f['conso_eau'], 'eau', $tarifs);
-    $f['montant_elec'] = $f['montant_elec'] !== null
-        ? (float) $f['montant_elec']
-        : calculerMontant((float) $f['conso_elec'], 'elec', $tarifs);
 
     require_once __DIR__ . '/../lib/fpdf/fpdf.php';
 
@@ -252,7 +263,8 @@ function facturePdf(int $id): void
     $pdf->Cell(0, 6, $t('Client : ' . $f['prenom'] . ' ' . $f['nom']), 0, 1);
     $pdf->Cell(0, 6, $t('Adresse : ' . ($f['adresse'] ?? '')), 0, 1);
     if (!empty($f['contrat_numero'])) {
-        $pdf->Cell(0, 6, $t('Contrat : #' . $f['contrat_numero'] . ' · ' . ($f['quartier'] ?? '')), 0, 1);
+        $pdf->Cell(0, 6, $t('Contrat : #' . $f['contrat_numero'] . ' · ' . ($f['quartier'] ?? '')
+            . ' (' . ($f['type_activite'] ?? '—') . ')'), 0, 1);
         $pdf->Cell(0, 6, $t('Compteurs : eau ' . ($f['num_compteur_eau'] ?? '—') . ' · électricité ' . ($f['num_compteur_elec'] ?? '—')), 0, 1);
     }
     $pdf->Cell(0, 6, $t('Index relevés : eau ' . $num($f['index_eau']) . ' m³ · électricité ' . $num($f['index_elec']) . ' kWh'), 0, 1);
@@ -275,7 +287,9 @@ function facturePdf(int $id): void
     $pdf->Ln(4);
     $pdf->Cell(125, 7, $t('Montant HT'), 0, 0, 'R');
     $pdf->Cell(55, 7, $t($dh($f['montant_ht'])), 0, 1, 'R');
-    $pdf->Cell(125, 7, $t('TVA 18 %'), 0, 0, 'R');
+    // Taux calculé à partir des montants enregistrés (la TVA peut changer dans Paramètres)
+    $taux = (float) $f['montant_ht'] > 0 ? round((float) $f['tva'] / (float) $f['montant_ht'] * 100) : 0;
+    $pdf->Cell(125, 7, $t('TVA ' . $taux . ' %'), 0, 0, 'R');
     $pdf->Cell(55, 7, $t($dh($f['tva'])), 0, 1, 'R');
     $pdf->SetFont('Helvetica', 'B', 12);
     $pdf->Cell(125, 10, $t('Total TTC'), 'T', 0, 'R');
