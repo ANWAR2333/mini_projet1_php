@@ -22,8 +22,8 @@ function clientOne(int $id): void
     }
 
     afficherVue('client/one.php', [
-        'titre'    => 'Client ' . $client['prenom'] . ' ' . $client['nom'],
-        'client'   => $client,
+        'titre'   => 'Client ' . $client['prenom'] . ' ' . $client['nom'],
+        'client'  => $client,
         'contrats' => bdContratsByClient($id),
     ]);
 }

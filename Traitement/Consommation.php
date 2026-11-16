@@ -79,14 +79,14 @@ function consoPhotoErreur(?array $f, string $nom): string
     return '';
 }
 
-function consoPhotoEnregistrer(array $f, int $idClient, int $annee, int $mois, string $suffixe): ?string
+function consoPhotoEnregistrer(array $f, int $idContrat, int $annee, int $mois, string $suffixe): ?string
 {
     $dossier = dirname(__DIR__) . '/uploads/';
     if (!is_dir($dossier) && !mkdir($dossier, 0755, true)) {
         return null;
     }
     $ext = CONSO_MIME[mime_content_type($f['tmp_name'])];
-    $nom = sprintf('c%d_%d_%02d_%s_%s.%s', $idClient, $annee, $mois, $suffixe, uniqid(), $ext);
+    $nom = sprintf('ct%d_%d_%02d_%s_%s.%s', $idContrat, $annee, $mois, $suffixe, uniqid(), $ext);
 
     return move_uploaded_file($f['tmp_name'], $dossier . $nom) ? 'uploads/' . $nom : null;
 }
@@ -99,58 +99,83 @@ function consoPhotoSupprimer(?string $chemin): void
 }
 
 
+/**
+ * Contrat choisi pour la saisie : POST (champ caché) puis GET (?id_contrat=) puis, par défaut,
+ * le premier contrat actif sans saisie ce mois-ci. Règle commune : appartenance (404 sinon)
+ * ET contrat actif (un contrat résilié ne saisit plus).
+ */
+function consoContratChoisi(array $contratsActifs, int $idClient, int $mois, int $annee): int
+{
+    $demande = (int) ($_POST['id_contrat'] ?? $_GET['id_contrat'] ?? 0);
+
+    if ($demande > 0) {
+        if (!bdContratAppartient($demande, $idClient)) {
+            afficher404();
+        }
+        if (!bdContratEstActif($demande)) {
+            rediriger('Consommation/add', "Ce contrat est résilié : la saisie n'est plus possible.", 'erreur');
+        }
+        return $demande;
+    }
+
+    foreach ($contratsActifs as $c) {
+        if (!bdConsoExiste((int) $c['id'], $mois, $annee)) {
+            return (int) $c['id'];
+        }
+    }
+    return (int) $contratsActifs[0]['id'];
+}
+
 function consoAdd(): void
 {
     verifierRole('client');
 
     $idClient = (int) $_SESSION['id'];
-    $contrats = bdContratsActifsByClient($idClient);
     $mois     = (int) date('n');
     $annee    = (int) date('Y');
-    $ouverte = consoPeriodeOuverte();
-    $erreurs = [];
-    $old = ['index_eau' => '', 'index_elec' => ''];
-    $valeurContrat = $_POST['id_contrat'] ?? $_GET['id_contrat'] ?? '';
-    $valeurContratInvalide = !is_scalar($valeurContrat);
-    $idDemande = $valeurContratInvalide ? '' : (string) $valeurContrat;
-    if ($valeurContratInvalide) {
-        $erreurs[] = 'Le contrat sélectionné est invalide.';
-    }
-    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !array_key_exists('id_contrat', $_POST)) {
-        $erreurs[] = 'Choisissez un contrat pour cette saisie.';
-    }
-    $contrat = null;
-    foreach ($contrats as $c) {
-        if ((string) $c['id'] === $idDemande) {
-            $contrat = $c;
-            break;
-        }
-    }
-    if ($contrat === null && $idDemande === '' && !$valeurContratInvalide && $contrats) {
-        $contrat = $contrats[0];
-    } elseif ($contrat === null && $idDemande !== '') {
-        $erreurs[] = 'Le contrat sélectionné est introuvable ou n’est plus actif.';
+    $ouverte  = consoPeriodeOuverte();
+    $contrats = bdContratsActifsByClient($idClient);
+
+    $vue = [
+        'ouverte'     => $ouverte,
+        'mois'        => $mois,
+        'annee'       => $annee,
+        'nomMois'     => consoNomMois($mois),
+        'dernierJour' => (int) date('t'),
+        'contrats'    => $contrats,
+    ];
+
+    if (!$contrats) {                       // aucun contrat actif : rien à saisir
+        afficherVue('consommation/form_add.php', $vue + [
+            'contrat' => [], 'saisiMois' => [], 'dejaSaisi' => false, 'prec' => [], 'param' => [],
+            'tranches' => [], 'nomMoisPrec' => '', 'erreurs' => [], 'old' => [],
+        ]);
+        return;
     }
 
-    $idContrat = $contrat ? (int) $contrat['id'] : 0;
-    $dejaSaisi = $idContrat > 0 && bdConsoExiste($idContrat, $mois, $annee);
-    $prec = $idContrat > 0
-        ? bdConsoPrecedente($idContrat, $mois, $annee)
-        : ['index_eau' => 0, 'index_elec' => 0, 'photo_eau' => null, 'photo_elec' => null, 'initial' => true, 'mois' => null, 'annee' => null, 'date_saisie' => null];
-    $param = bdParametreGet();
-    if ($contrat) {
-        $param = array_merge($param, bdContratSeuils($idContrat));
+    $idContrat = consoContratChoisi($contrats, $idClient, $mois, $annee);
+    $contrat   = bdContratOne($idContrat);
+    $idContratClient = (int) $contrat['id_client'];     // = $idClient (vérifié par bdContratAppartient)
+
+    $saisiMois = [];
+    foreach ($contrats as $c) {
+        $saisiMois[(int) $c['id']] = bdConsoExiste((int) $c['id'], $mois, $annee);
     }
-    $tranches = $idContrat > 0 ? bdContratTranches($idContrat) : ['eau' => [], 'elec' => []];
+    $dejaSaisi = $saisiMois[$idContrat] ?? bdConsoExiste($idContrat, $mois, $annee);
+    $prec      = bdConsoPrecedente($idContrat, $mois, $annee);
+    // Seuils du TYPE D'ACTIVITÉ du contrat ; la TVA reste celle de la table parametre.
+    $param     = bdContratSeuils($idContrat) + ['taux_tva' => bdParametreGet()['taux_tva']];
+    $erreurs   = [];
+    $old       = ['index_eau' => '', 'index_elec' => ''];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$contrats) {
             $erreurs[] = 'Aucun contrat actif ne permet de saisir une consommation.';
         } elseif ($contrat && !$ouverte) {
             $erreurs[] = 'La saisie est fermée : elle est ouverte à partir du 18 de chaque mois.';
-        } elseif ($contrat && $dejaSaisi) {
-            $erreurs[] = 'Une consommation a déjà été saisie ce mois pour ce contrat.';
-        } elseif ($contrat) {
+        } elseif ($dejaSaisi) {
+            $erreurs[] = 'Vous avez déjà saisi votre consommation pour ce mois (contrat n°' . $idContrat . ')';
+        } else {
             $old['index_eau']  = trim((string) ($_POST['index_eau']  ?? ''));
             $old['index_elec'] = trim((string) ($_POST['index_elec'] ?? ''));
             $indexEau  = consoNombre($old['index_eau']);
@@ -173,8 +198,8 @@ function consoAdd(): void
             }
 
             if (!$erreurs) {
-                $photoEau  = consoPhotoEnregistrer($_FILES['photo_eau'],  $idClient, $annee, $mois, 'eau');
-                $photoElec = consoPhotoEnregistrer($_FILES['photo_elec'], $idClient, $annee, $mois, 'elec');
+                $photoEau  = consoPhotoEnregistrer($_FILES['photo_eau'],  $idContrat, $annee, $mois, 'eau');
+                $photoElec = consoPhotoEnregistrer($_FILES['photo_elec'], $idContrat, $annee, $mois, 'elec');
 
                 if ($photoEau === null || $photoElec === null) {
                     consoPhotoSupprimer($photoEau);
@@ -185,8 +210,8 @@ function consoAdd(): void
 
                     try {
                         $idConso = bdConsoEnregistrer([
-                            'id_client'  => $idClient,
                             'id_contrat' => $idContrat,
+                            'id_client'  => $idContratClient,
                             'mois'       => $mois,
                             'annee'      => $annee,
                             'index_eau'  => $indexEau,
@@ -199,7 +224,7 @@ function consoAdd(): void
                         consoPhotoSupprimer($photoEau);
                         consoPhotoSupprimer($photoElec);
                         $erreurs[] = ($ex->getCode() === '23000')
-                            ? 'Une consommation a déjà été saisie ce mois pour ce contrat.'
+                            ? 'Vous avez déjà saisi votre consommation pour ce mois (contrat n°' . $idContrat . ')'
                             : "Erreur lors de l'enregistrement. Réessayez.";
                         $idConso = 0;
                     }
@@ -223,26 +248,21 @@ function consoAdd(): void
         }
     }
 
-    afficherVue('consommation/form_add.php', [
-        'contrats'    => $contrats,
+    afficherVue('consommation/form_add.php', $vue + [
         'contrat'     => $contrat,
-        'idContrat'   => $idContrat,
-        'ouverte'     => $ouverte,
+        'saisiMois'   => $saisiMois,
         'dejaSaisi'   => $dejaSaisi,
-        'mois'        => $mois,
-        'annee'       => $annee,
-        'nomMois'     => consoNomMois($mois),
-        'dernierJour' => (int) date('t'),
         'prec'        => $prec,
         'nomMoisPrec' => $prec['mois'] ? consoNomMois($prec['mois']) : '',
         'param'       => $param,
-        'tranches'    => $tranches,
+        'tranches'    => bdContratTranches($idContrat),   // barème du contrat, pour l'estimation JavaScript
         'erreurs'     => $erreurs,
         'old'         => $old,
     ]);
 }
 
 
+/** Route Consommation/all — historique de CHAQUE contrat du client (actifs ou résiliés). */
 function consoAll(): void
 {
     verifierRole('client');
@@ -266,35 +286,39 @@ function consoAll(): void
             ($libService[$a['service']] ?? $a['service']) . ' : ' . ($libType[$a['type']] ?? $a['type']);
     }
 
-    $historique = [];
-    $precedents = [];
-    foreach (bdConsoByClient($idClient) as $l) {
-        $idContrat = (int) $l['id_contrat'];
-        if (!isset($precedents[$idContrat])) {
-            $precedents[$idContrat] = bdConsoIndexInitial($idContrat);
-        }
-        $eau  = (float) ($l['eau_corrige']  ?? $l['index_eau']);
-        $elec = (float) ($l['elec_corrige'] ?? $l['index_elec']);
-        [$lib, $classe] = $libStatut[$l['statut']] ?? [$l['statut'], ''];
-        $prevEau = $precedents[$idContrat]['index_eau'];
-        $prevElec = $precedents[$idContrat]['index_elec'];
+    $groupes = [];
+    $total   = 0;
+    foreach (bdContratsByClient($idClient) as $contrat) {
+        $ref      = bdConsoIndexInitial((int) $contrat['id']);   // départ = index initial du contrat
+        $prevEau  = $ref['index_eau'];
+        $prevElec = $ref['index_elec'];
 
-        $historique[] = [
-            'periode'     => consoNomMois((int) $l['mois']) . ' ' . $l['annee'],
-            'contrat'     => $l['quartier'] ? 'Contrat #' . $idContrat . ' · ' . $l['quartier'] : 'Contrat #' . $idContrat,
-            'index_eau'   => $eau,
-            'index_elec'  => $elec,
-            'conso_eau'   => round($eau  - $prevEau, 2),
-            'conso_elec'  => round($elec - $prevElec, 2),
-            'statut'      => $lib,
-            'badge'       => $classe,
-            'motifs'      => $motifs[$l['id']] ?? [],
-        ];
+        $historique = [];
+        foreach (bdConsoByContrat((int) $contrat['id']) as $l) {   // du plus ancien au plus récent
+            $eau  = (float) ($l['eau_corrige']  ?? $l['index_eau']);
+            $elec = (float) ($l['elec_corrige'] ?? $l['index_elec']);
+            [$lib, $classe] = $libStatut[$l['statut']] ?? [$l['statut'], ''];
 
-        if ($l['statut'] !== 'anomalie') {
-            $precedents[$idContrat] = ['index_eau' => $eau, 'index_elec' => $elec];
+            $historique[] = [
+                'periode'     => consoNomMois((int) $l['mois']) . ' ' . $l['annee'],
+                'index_eau'   => $eau,
+                'index_elec'  => $elec,
+                'conso_eau'   => round($eau  - $prevEau, 2),
+                'conso_elec'  => round($elec - $prevElec, 2),
+                'statut'      => $lib,
+                'badge'       => $classe,
+                'motifs'      => $motifs[$l['id']] ?? [],
+            ];
+
+            if ($l['statut'] !== 'anomalie') {
+                $prevEau  = $eau;
+                $prevElec = $elec;
+            }
         }
+
+        $total   += count($historique);
+        $groupes[] = ['contrat' => $contrat, 'historique' => array_reverse($historique)];
     }
 
-    afficherVue('consommation/index.php', ['historique' => array_reverse($historique)]);
+    afficherVue('consommation/index.php', ['groupes' => $groupes, 'total' => $total]);
 }

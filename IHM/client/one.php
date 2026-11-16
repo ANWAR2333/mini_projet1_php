@@ -27,13 +27,24 @@ $e = fn($valeur) => htmlspecialchars((string) $valeur, ENT_QUOTES, 'UTF-8');
 <section class="carte">
   <h2>Contrats</h2>
   <p><a class="btn-principal" href="<?= BASE_URL ?>Contrat/add/<?= (int) $client['id'] ?>">Ajouter un contrat</a></p>
+
   <?php if (!$contrats): ?>
     <p>Aucun contrat pour ce client.</p>
   <?php else: ?>
     <div class="scroll-x">
       <table class="tableau">
         <thead>
-          <tr><th>#</th><th>Quartier</th><th>Type</th><th>Compteur eau</th><th>Compteur électricité</th><th>Début</th><th>Fin</th><th>Statut</th><th>Actions</th></tr>
+          <tr>
+            <th>#</th>
+            <th>Quartier</th>
+            <th>Type</th>
+            <th>Compteur eau</th>
+            <th>Compteur électricité</th>
+            <th>Début</th>
+            <th>Fin</th>
+            <th>Statut</th>
+            <th>Actions</th>
+          </tr>
         </thead>
         <tbody>
           <?php foreach ($contrats as $contrat): ?>
@@ -45,18 +56,13 @@ $e = fn($valeur) => htmlspecialchars((string) $valeur, ENT_QUOTES, 'UTF-8');
               <td><?= $e($contrat['num_compteur_elec'] ?: '—') ?></td>
               <td><?= $e($contrat['date_debut']) ?></td>
               <td><?= $e($contrat['date_fin'] ?: '—') ?></td>
-              <td><?= $contrat['statut'] === 'resilie' ? 'Résilié' : 'Actif' ?></td>
+              <td><?= $e($contrat['statut']) === 'resilie' ? 'Résilié' : 'Actif' ?></td>
               <td>
                 <div class="actions">
-                  <?php if ($contrat['statut'] === 'actif'): ?>
-                    <a href="<?= BASE_URL ?>Contrat/update/<?= (int) $contrat['id'] ?>" title="Modifier le contrat"><i data-lucide="pencil"></i></a>
-                  <?php endif; ?>
-                  <?php if ($contrat['statut'] === 'actif'): ?>
-                    <form method="post" action="<?= BASE_URL ?>Contrat/resilier/<?= (int) $contrat['id'] ?>"
-                          onsubmit="return confirm('Résilier ce contrat ?');">
-                      <button type="submit" title="Résilier le contrat"><i data-lucide="trash-2"></i></button>
-                    </form>
-                  <?php endif; ?>
+                  <a href="<?= BASE_URL ?>Contrat/update/<?= (int) $contrat['id'] ?>" title="Modifier le contrat"><i data-lucide="pencil"></i></a>
+                  <form method="post" action="<?= BASE_URL ?>Contrat/resilier/<?= (int) $contrat['id'] ?>" onsubmit="return confirm('Résilier ce contrat ?');" style="display:inline;">
+                    <button type="submit" title="Résilier le contrat" aria-label="Résilier le contrat" style="background:none;border:none;padding:0;color:inherit;cursor:pointer;"><i data-lucide="trash-2"></i></button>
+                  </form>
                 </div>
               </td>
             </tr>

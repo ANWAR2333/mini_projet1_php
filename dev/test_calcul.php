@@ -29,4 +29,13 @@ foreach ($cas as $ligne) {
 $ht  = calculerMontant(120, 'elec') + calculerMontant(15, 'eau');
 $tva = round($ht * 0.18, 2);
 printf("\nExemple Suivi 1 : HT %.2f · TVA %.2f · TTC %.2f (attendu 221.25 · 39.83 · 261.08)\n", $ht, $tva, $ht + $tva);
-printf("%d / %d cas corrects\n", $ok, count($cas));
+
+$tarifsCommerciaux = [
+    'eau' => [[10, 3.20], [null, 13.20]],
+    'elec' => [[200, 1.00], [null, 1.30]],
+];
+$montantContrat = calculerMontant(12, 'eau', $tarifsCommerciaux);
+$bonContrat = abs($montantContrat - 158.40) < 0.001;
+$ok += $bonContrat;
+printf("%-4s Barème commercial contrat : %.2f DH (attendu 158.40)\n", $bonContrat ? 'OK' : 'FAUX', $montantContrat);
+printf("%d / %d cas corrects\n", $ok, count($cas) + 1);

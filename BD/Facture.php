@@ -8,35 +8,24 @@ declare(strict_types=1);
 // Chargé automatiquement par le routeur (index.php charge tout BD/ et Traitement/).
 
 /** Insère une facture et renvoie son id. */
-function bdFactureInsert(
-    string $numero,
-    int $idClient,
-    int $idContrat,
-    int $idConso,
-    string $dateFacture,
-    string $periode,
-    float $consoEau,
-    float $consoElec,
-    float $montantEau,
-    float $montantElec,
-    float $ht,
-    float $tva,
-    float $ttc
-): int
+function bdFactureInsert(string $numero, int $idClient, int $idConso, string $dateFacture, string $periode,
+                         float $consoEau, float $consoElec, float $ht, float $tva, float $ttc,
+                         ?int $idContrat = null, ?float $montantEau = null, ?float $montantElec = null): int
 {
     $pdo = getConnexion();
-    $sql = "INSERT INTO facture
-                (numero, id_client, id_contrat, id_consommation, date_facture, periode,
-                 conso_eau, conso_elec, montant_eau, montant_elec, montant_ht, tva, montant_ttc, statut)
-            VALUES
-                (:numero, :id_client, :id_contrat, :id_conso, :date_facture, :periode,
-                 :conso_eau, :conso_elec, :montant_eau, :montant_elec, :ht, :tva, :ttc, 'impayee')";
+    $sql = "INSERT INTO facture (numero, id_client, id_consommation, date_facture, periode,
+                                 conso_eau, conso_elec, montant_eau, montant_elec,
+                                 id_contrat, montant_ht, tva, montant_ttc, statut)
+            VALUES (:numero, :id_client, :id_conso, :date_facture, :periode,
+                    :conso_eau, :conso_elec, :montant_eau, :montant_elec,
+                    :id_contrat, :ht, :tva, :ttc, 'impayee')";
     $st = $pdo->prepare($sql);
     $st->execute([
         ':numero' => $numero, ':id_client' => $idClient, ':id_contrat' => $idContrat, ':id_conso' => $idConso,
         ':date_facture' => $dateFacture, ':periode' => $periode,
         ':conso_eau' => $consoEau, ':conso_elec' => $consoElec,
         ':montant_eau' => $montantEau, ':montant_elec' => $montantElec,
+        ':id_contrat' => $idContrat,
         ':ht' => $ht, ':tva' => $tva, ':ttc' => $ttc,
     ]);
     return (int) $pdo->lastInsertId();
@@ -52,15 +41,25 @@ function bdFactureIdByConso(int $idConso): ?int
 }
 
 /** Factures d'un client, de la plus récente à la plus ancienne. */
-function bdFactureByClient(int $idClient): array
+function bdFactureByClient(int $idClient, ?int $idContrat = null): array
 {
-    $st = getConnexion()->prepare(
-        "SELECT id, id_contrat, numero, date_facture, periode, conso_eau, conso_elec,
-                montant_ht, tva, montant_ttc, statut
-         FROM facture
-         WHERE id_client = :id
-         ORDER BY date_facture DESC, id DESC");
-    $st->execute([':id' => $idClient]);
+    $sql = "SELECT f.id, f.numero, f.id_contrat, q.nom AS quartier,
+                   ct.num_compteur_eau, ct.num_compteur_elec,
+                   f.date_facture, f.periode, f.conso_eau, f.conso_elec,
+                   f.montant_ht, f.tva, f.montant_ttc, f.statut
+            FROM facture f
+            LEFT JOIN contrat ct ON ct.id = f.id_contrat
+            LEFT JOIN quartier q ON q.id = ct.id_quartier
+            WHERE f.id_client = :id";
+    $params = [':id' => $idClient];
+    if ($idContrat !== null) {
+        $sql .= ' AND f.id_contrat = :id_contrat';
+        $params[':id_contrat'] = $idContrat;
+    }
+    $sql .= ' ORDER BY f.date_facture DESC, f.id DESC';
+
+    $st = getConnexion()->prepare($sql);
+    $st->execute($params);
     return $st->fetchAll();
 }
 
@@ -73,9 +72,9 @@ function bdFactureOne(int $id): array
     $st = getConnexion()->prepare(
         "SELECT f.*,
                 c.nom, c.prenom, c.adresse,
-                ct.num_compteur_eau, ct.num_compteur_elec, q.nom AS quartier,
-                t.nom AS type_activite, co.mois, co.annee, co.index_eau, co.index_elec,
-                co.photo_eau, co.photo_elec
+                ct.num_compteur_eau, ct.num_compteur_elec, ct.id AS contrat_numero,
+                q.nom AS quartier, t.nom AS type_activite,
+                co.mois, co.annee, co.index_eau, co.index_elec, co.photo_eau, co.photo_elec
          FROM facture f
          JOIN client c        ON c.id  = f.id_client
          JOIN consommation co ON co.id = f.id_consommation
@@ -90,19 +89,30 @@ function bdFactureOne(int $id): array
 
 // Chaimaa : factures côté fournisseur
 
-/** Toutes les factures avec le nom du client. $statut = null (toutes) | 'impayee' | 'payee'. */
-function bdFactureAll(?string $statut = null): array
+/** Toutes les factures. Filtres facultatifs : statut ('impayee'|'payee'), quartier, type d'activité. */
+function bdFactureAll(?string $statut = null, ?int $idQuartier = null, ?int $idType = null): array
 {
-    $sql =     "SELECT f.id, f.id_contrat, f.numero, f.date_facture, f.periode, f.montant_ttc, f.statut,
-               c.nom, c.prenom, q.nom AS quartier
+    $sql = "SELECT f.id, f.numero, f.id_contrat, q.nom AS quartier, t.nom AS type_activite,
+                   f.date_facture, f.periode, f.montant_ttc, f.statut,
+                   c.nom, c.prenom
             FROM facture f
-        JOIN client c ON c.id = f.id_client
-        LEFT JOIN contrat ct ON ct.id = f.id_contrat
-        LEFT JOIN quartier q ON q.id = ct.id_quartier";
+            JOIN client c ON c.id = f.id_client
+            LEFT JOIN contrat ct      ON ct.id = f.id_contrat
+            LEFT JOIN quartier q      ON q.id  = ct.id_quartier
+            LEFT JOIN type_activite t ON t.id  = q.id_type_activite
+            WHERE 1 = 1";
     $params = [];
     if ($statut !== null) {
-        $sql .= " WHERE f.statut = :statut";
+        $sql .= " AND f.statut = :statut";
         $params[':statut'] = $statut;
+    }
+    if ($idQuartier !== null) {
+        $sql .= " AND q.id = :quartier";
+        $params[':quartier'] = $idQuartier;
+    }
+    if ($idType !== null) {
+        $sql .= " AND t.id = :type";
+        $params[':type'] = $idType;
     }
     $sql .= " ORDER BY f.date_facture DESC, f.id DESC";
 

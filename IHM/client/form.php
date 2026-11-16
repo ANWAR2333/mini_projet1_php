@@ -10,7 +10,10 @@ $action = $modification
 <header class="carte carte-titre">
   <div>
     <h1><?= $modification ? 'Modifier un client' : 'Ajouter un client' ?></h1>
-    <p class="sous-titre">Renseignez les informations du compte client. Les compteurs et index se définissent dans chaque contrat.</p>
+    <p class="sous-titre">
+      Renseignez les informations du compte client.
+      Les compteurs et index initiaux se définissent dans chaque contrat.
+    </p>
   </div>
 </header>
 

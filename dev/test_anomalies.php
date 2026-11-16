@@ -1,6 +1,7 @@
 <?php
 
 require __DIR__ . '/../Traitement/Consommation.php';
+require __DIR__ . '/../Traitement/Anomalie.php';
 
 $param = ['seuil_eau' => 50.0, 'seuil_elec' => 500.0, 'taux_tva' => 0.18];
 $prec  = ['index_eau' => 1245.0, 'index_elec' => 8430.0];
@@ -26,6 +27,27 @@ verifier('Eau : exactement 50 m3 = pas d\'anomalie',   $prec, 1295,  8550, $para
 verifier('Elec : 501 kWh depasse le seuil',            $prec, 1260,  8931, $param, ['electricite:depasse_seuil']);
 verifier('Elec : exactement 500 kWh = pas d\'anomalie',$prec, 1260,  8930, $param, []);
 verifier('Eau inferieure + elec au-dessus du seuil',   $prec, 1100,  9000, $param, ['eau:index_inferieur', 'electricite:depasse_seuil']);
+
+// Phase 2 : les seuils sont ceux du TYPE D'ACTIVITE du contrat (bdContratSeuils), plus ceux de la table parametre.
+$commercial = ['seuil_eau' => 200.0,  'seuil_elec' => 2000.0,  'taux_tva' => 0.18];
+$industriel = ['seuil_eau' => 1000.0, 'seuil_elec' => 10000.0, 'taux_tva' => 0.18];
+verifier('Commercial : 51 m3 n\'est plus une anomalie',  $prec, 1296,  8550, $commercial, []);
+verifier('Commercial : 201 m3 depasse le seuil',         $prec, 1446,  8550, $commercial, ['eau:depasse_seuil']);
+verifier('Commercial : 2001 kWh depasse le seuil',       $prec, 1260, 10431, $commercial, ['electricite:depasse_seuil']);
+verifier('Industriel : 600 m3 et 5000 kWh = normal',     $prec, 1845, 13430, $industriel, []);
+verifier('Industriel : 1001 m3 depasse le seuil',        $prec, 2246,  8550, $industriel, ['eau:depasse_seuil']);
+verifier('Residentiel : les memes 600 m3 sont une anomalie', $prec, 1845, 8550, $param, ['eau:depasse_seuil']);
+
+// Controle de l'index corrige par le fournisseur (anomalieErreurIndex)
+$anom = ['index_precedent' => '1245.00'];
+foreach ([['corrige valide (1260)',                         1260.0, true],
+          ['corrige egal au precedent = accepte (conso nulle confirmee)', 1245.0, true],
+          ['corrige inferieur au precedent = refuse',       1200.0, false],
+          ['corrige vide / invalide (null) = refuse',       null,   false]] as [$nom, $idx, $attendu]) {
+    $ok = (anomalieErreurIndex($anom, $idx) === '') === $attendu;
+    if (!$ok) { $echecs++; }
+    printf("%-52s %s\n", mb_strimwidth($nom, 0, 52), $ok ? 'OK' : 'ECHEC');
+}
 
 foreach ([['1260', 1260.0], ['1 260,5', 1260.5], ['abc', null], ['-5', null], ['', null], ['0', 0.0]] as [$in, $out]) {
     $r = consoNombre($in);

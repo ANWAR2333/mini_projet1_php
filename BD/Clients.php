@@ -25,6 +25,7 @@ function bdClientOne(int $id): array
 {
     $sql = 'SELECT id, nom, prenom, adresse, telephone, email,
                     date_creation
+    $sql = 'SELECT id, nom, prenom, adresse, telephone, email, date_creation
             FROM client
             WHERE id = ?';
     $st = getConnexion()->prepare($sql);

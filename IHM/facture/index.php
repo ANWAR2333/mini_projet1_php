@@ -2,7 +2,7 @@
 /**
  * IHM/facture/index.php — Farah Bel Aali
  * Maquette : Écran 4 « Mes Factures » (partie liste).
- * Variables reçues de factureAll() : $factures (array), $totalImpaye (float)
+ * Variables reçues de factureAll() : $factures (array), $totalImpaye (float), $contrats (array), $idContrat (?int)
  */
 $e        = fn($x) => htmlspecialchars((string) $x, ENT_QUOTES, 'UTF-8');
 $moisNoms = ['Janvier','Février','Mars','Avril','Mai','Juin','Juillet','Août','Septembre','Octobre','Novembre','Décembre'];
@@ -19,6 +19,19 @@ $num      = fn($x) => rtrim(rtrim(number_format((float) $x, 2, ',', ''), '0'), '
     <small>à payer</small>
   </div>
 </header>
+
+<?php if (!empty($contrats)): ?>
+<form method="get" class="formulaire" style="margin-bottom:1rem;">
+  <select name="id_contrat" onchange="this.form.submit()">
+    <option value="">Tous les contrats</option>
+    <?php foreach ($contrats as $c): ?>
+      <option value="<?= (int) $c['id'] ?>" <?= $idContrat === (int) $c['id'] ? 'selected' : '' ?>>
+        #<?= (int) $c['id'] ?> — <?= $e($c['quartier'] ?? '') ?>
+      </option>
+    <?php endforeach; ?>
+  </select>
+</form>
+<?php endif; ?>
 
 <section class="carte">
   <?php if (empty($factures)): ?>
@@ -37,7 +50,7 @@ $num      = fn($x) => rtrim(rtrim(number_format((float) $x, 2, ',', ''), '0'), '
           [$m, $a] = explode('/', $f['periode']); ?>
         <tr>
           <td><?= $e($f['numero']) ?></td>
-          <td>#<?= (int) $f['id_contrat'] ?></td>
+          <td><?= !empty($f['id_contrat']) ? '#' . (int) $f['id_contrat'] . ' · ' . $e($f['quartier'] ?? '') : 'Ancien relevé' ?></td>
           <td><?= date('d/m/Y', strtotime($f['date_facture'])) ?></td>
           <td><?= $moisNoms[(int) $m - 1] . ' ' . $e($a) ?></td>
           <td><?= $num($f['conso_eau']) ?> m³</td>

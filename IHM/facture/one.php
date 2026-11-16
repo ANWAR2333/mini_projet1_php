@@ -34,9 +34,10 @@ $fin      = date('t/m/Y', mktime(0, 0, 0, (int) $f['mois'], 1, (int) $f['annee']
     <p><strong>Période :</strong> <?= $debut ?> – <?= $fin ?></p>
     <p><strong>Client :</strong> <?= $e($f['prenom'] . ' ' . $f['nom']) ?></p>
     <p><strong>Adresse :</strong> <?= $e($f['adresse'] ?? '') ?></p>
-    <p><strong>Contrat :</strong> #<?= (int) $f['id_contrat'] ?><?= !empty($f['quartier']) ? ' · ' . $e($f['quartier']) : '' ?></p>
-    <p><strong>Compteur eau :</strong> <?= $e($f['num_compteur_eau'] ?: '—') ?></p>
-    <p><strong>Compteur électricité :</strong> <?= $e($f['num_compteur_elec'] ?: '—') ?></p>
+    <?php if (!empty($f['contrat_numero'])): ?>
+      <p><strong>Contrat :</strong> #<?= (int) $f['contrat_numero'] ?> · <?= $e($f['quartier'] ?? '') ?> (<?= $e($f['type_activite'] ?? '') ?>)</p>
+      <p><strong>Compteurs :</strong> Eau <?= $e($f['num_compteur_eau'] ?: '—') ?> · Électricité <?= $e($f['num_compteur_elec'] ?: '—') ?></p>
+    <?php endif; ?>
   </section>
 
   <section class="carte">
