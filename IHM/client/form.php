@@ -10,7 +10,7 @@ $action = $modification
 <header class="carte carte-titre">
   <div>
     <h1><?= $modification ? 'Modifier un client' : 'Ajouter un client' ?></h1>
-    <p class="sous-titre">Renseignez les informations du compte client</p>
+    <p class="sous-titre">Renseignez les informations du compte client. Les compteurs et index se définissent dans chaque contrat.</p>
   </div>
 </header>
 
@@ -47,22 +47,6 @@ $action = $modification
     <div>
       <label for="adresse">Adresse</label>
       <input class="champ" type="text" id="adresse" name="adresse" maxlength="255" value="<?= $e($client['adresse']) ?>">
-    </div>
-    <div>
-      <label for="num_compteur_eau">Numéro du compteur d’eau</label>
-      <input class="champ" type="text" id="num_compteur_eau" name="num_compteur_eau" maxlength="50" value="<?= $e($client['num_compteur_eau']) ?>">
-    </div>
-    <div>
-      <label for="num_compteur_elec">Numéro du compteur d’électricité</label>
-      <input class="champ" type="text" id="num_compteur_elec" name="num_compteur_elec" maxlength="50" value="<?= $e($client['num_compteur_elec']) ?>">
-    </div>
-    <div>
-      <label for="index_initial_eau">Index initial eau (m³) *</label>
-      <input class="champ" type="number" id="index_initial_eau" name="index_initial_eau" min="0" max="99999999.99" step="0.01" required value="<?= $e($client['index_initial_eau'] !== '' ? $client['index_initial_eau'] : '0.00') ?>">
-    </div>
-    <div>
-      <label for="index_initial_elec">Index initial électricité (kWh) *</label>
-      <input class="champ" type="number" id="index_initial_elec" name="index_initial_elec" min="0" max="99999999.99" step="0.01" required value="<?= $e($client['index_initial_elec'] !== '' ? $client['index_initial_elec'] : '0.00') ?>">
     </div>
   </div>
   <p>* Champs obligatoires.</p>

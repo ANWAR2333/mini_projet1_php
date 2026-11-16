@@ -7,19 +7,19 @@ function bdConsoOne(int $id): array
     return $st->fetch() ?: [];
 }
 
-function bdConsoExiste(int $idClient, int $mois, int $annee): bool
+function bdConsoExiste(int $idContrat, int $mois, int $annee): bool
 {
     $st = getConnexion()->prepare(
-        'SELECT COUNT(*) FROM consommation WHERE id_client = ? AND mois = ? AND annee = ?'
+        'SELECT COUNT(*) FROM consommation WHERE id_contrat = ? AND mois = ? AND annee = ?'
     );
-    $st->execute([$idClient, $mois, $annee]);
+    $st->execute([$idContrat, $mois, $annee]);
     return (int) $st->fetchColumn() > 0;
 }
 
-function bdConsoIndexInitial(int $idClient): array
+function bdConsoIndexInitial(int $idContrat): array
 {
-    $st = getConnexion()->prepare('SELECT index_initial_eau, index_initial_elec FROM client WHERE id = ?');
-    $st->execute([$idClient]);
+    $st = getConnexion()->prepare('SELECT index_initial_eau, index_initial_elec FROM contrat WHERE id = ?');
+    $st->execute([$idContrat]);
     $r = $st->fetch() ?: [];
     return [
         'index_eau'  => (float) ($r['index_initial_eau']  ?? 0),
@@ -36,18 +36,18 @@ function bdConsoSqlCorrige(string $service, string $alias): string
 }
 
 
-function bdConsoPrecedente(int $idClient, int $mois, int $annee): array
+function bdConsoPrecedente(int $idContrat, int $mois, int $annee): array
 {
     $sql = 'SELECT c.*, ' . bdConsoSqlCorrige('eau', 'eau_corrige') . ', '
          . bdConsoSqlCorrige('electricite', 'elec_corrige') . "
             FROM consommation c
-            WHERE c.id_client = ?
+            WHERE c.id_contrat = ?
               AND c.statut IN ('normale', 'corrigee')
               AND (c.annee < ? OR (c.annee = ? AND c.mois < ?))
             ORDER BY c.annee DESC, c.mois DESC
             LIMIT 1";
     $st = getConnexion()->prepare($sql);
-    $st->execute([$idClient, $annee, $annee, $mois]);
+    $st->execute([$idContrat, $annee, $annee, $mois]);
     $r = $st->fetch();
 
     if ($r) {
@@ -63,7 +63,7 @@ function bdConsoPrecedente(int $idClient, int $mois, int $annee): array
         ];
     }
 
-    $init = bdConsoIndexInitial($idClient);
+    $init = bdConsoIndexInitial($idContrat);
     return [
         'index_eau'   => $init['index_eau'],
         'index_elec'  => $init['index_elec'],
@@ -79,10 +79,13 @@ function bdConsoPrecedente(int $idClient, int $mois, int $annee): array
 function bdConsoByClient(int $idClient): array
 {
     $sql = 'SELECT c.*, ' . bdConsoSqlCorrige('eau', 'eau_corrige') . ', '
-         . bdConsoSqlCorrige('electricite', 'elec_corrige') . '
+         . bdConsoSqlCorrige('electricite', 'elec_corrige') . ',
+                   q.nom AS quartier
             FROM consommation c
+            LEFT JOIN contrat ct ON ct.id = c.id_contrat
+            LEFT JOIN quartier q ON q.id = ct.id_quartier
             WHERE c.id_client = ?
-            ORDER BY c.annee ASC, c.mois ASC';
+            ORDER BY c.id_contrat ASC, c.annee ASC, c.mois ASC';
     $st = getConnexion()->prepare($sql);
     $st->execute([$idClient]);
     return $st->fetchAll();
@@ -95,11 +98,11 @@ function bdConsoEnregistrer(array $conso, array $anomalies): int
     $pdo->beginTransaction();
     try {
         $st = $pdo->prepare(
-            'INSERT INTO consommation (id_client, mois, annee, index_eau, index_elec, photo_eau, photo_elec, statut)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+            'INSERT INTO consommation (id_client, id_contrat, mois, annee, index_eau, index_elec, photo_eau, photo_elec, statut)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)'
         );
         $st->execute([
-            $conso['id_client'], $conso['mois'], $conso['annee'],
+            $conso['id_client'], $conso['id_contrat'], $conso['mois'], $conso['annee'],
             $conso['index_eau'], $conso['index_elec'],
             $conso['photo_eau'], $conso['photo_elec'], $conso['statut'],
         ]);

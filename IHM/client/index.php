@@ -24,7 +24,7 @@ $e = fn($valeur) => htmlspecialchars((string) $valeur, ENT_QUOTES, 'UTF-8');
       <table class="tableau">
         <thead>
           <tr>
-            <th>Nom</th><th>Email</th><th>Téléphone</th><th>Compteur eau</th><th>Compteur électricité</th><th>Actions</th>
+            <th>Nom</th><th>Email</th><th>Téléphone</th><th>Contrats</th><th>Actions</th>
           </tr>
         </thead>
         <tbody>
@@ -33,8 +33,7 @@ $e = fn($valeur) => htmlspecialchars((string) $valeur, ENT_QUOTES, 'UTF-8');
               <td><?= $e($client['prenom'] . ' ' . $client['nom']) ?></td>
               <td><?= $e($client['email']) ?></td>
               <td><?= $e($client['telephone'] ?: '—') ?></td>
-              <td><?= $e($client['num_compteur_eau'] ?: '—') ?></td>
-              <td><?= $e($client['num_compteur_elec'] ?: '—') ?></td>
+              <td><?= (int) $client['nb_contrats'] ?></td>
               <td>
                 <div class="actions">
                   <a href="<?= BASE_URL ?>Client/one/<?= (int) $client['id'] ?>" title="Voir le client"><i data-lucide="eye"></i></a>

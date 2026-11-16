@@ -61,6 +61,70 @@ function bdContratsActifsByClient(int $idClient): array
     return $st->fetchAll();
 }
 
+/** Crée un contrat actif pour un client existant. */
+function bdContratInsert(
+    int $idClient,
+    int $idQuartier,
+    string $numCompteurEau,
+    string $numCompteurElec,
+    float $indexInitialEau,
+    float $indexInitialElec,
+    string $dateDebut
+): int {
+    $st = getConnexion()->prepare(
+        "INSERT INTO contrat
+            (id_client, id_quartier, num_compteur_eau, num_compteur_elec,
+             index_initial_eau, index_initial_elec, date_debut, statut)
+         VALUES (?, ?, ?, ?, ?, ?, ?, 'actif')"
+    );
+    $st->execute([
+        $idClient, $idQuartier, $numCompteurEau, $numCompteurElec,
+        $indexInitialEau, $indexInitialElec, $dateDebut,
+    ]);
+    return (int) getConnexion()->lastInsertId();
+}
+
+/** Les contrats déjà utilisés ne sont pas modifiables afin de préserver l'historique des relevés. */
+function bdContratAConsommations(int $idContrat): bool
+{
+    $st = getConnexion()->prepare('SELECT COUNT(*) FROM consommation WHERE id_contrat = ?');
+    $st->execute([$idContrat]);
+    return (int) $st->fetchColumn() > 0;
+}
+
+function bdContratUpdate(
+    int $id,
+    int $idQuartier,
+    string $numCompteurEau,
+    string $numCompteurElec,
+    float $indexInitialEau,
+    float $indexInitialElec,
+    string $dateDebut
+): int {
+    $st = getConnexion()->prepare(
+        "UPDATE contrat
+         SET id_quartier = ?, num_compteur_eau = ?, num_compteur_elec = ?,
+             index_initial_eau = ?, index_initial_elec = ?, date_debut = ?
+         WHERE id = ? AND statut = 'actif'"
+    );
+    $st->execute([
+        $idQuartier, $numCompteurEau, $numCompteurElec,
+        $indexInitialEau, $indexInitialElec, $dateDebut, $id,
+    ]);
+    return $st->rowCount();
+}
+
+/** Résilie le contrat sans supprimer son historique. */
+function bdContratResilier(int $id): int
+{
+    $st = getConnexion()->prepare(
+        "UPDATE contrat SET statut = 'resilie', date_fin = CURRENT_DATE
+         WHERE id = ? AND statut = 'actif'"
+    );
+    $st->execute([$id]);
+    return $st->rowCount();
+}
+
 /** Seuils d'anomalie du contrat = ceux de son type d'activité : ['seuil_eau' => float, 'seuil_elec' => float]. */
 function bdContratSeuils(int $idContrat): array
 {

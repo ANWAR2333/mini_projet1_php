@@ -16,6 +16,7 @@ $f        = $facture;
 
 <section class="carte">
   <p><strong>Client :</strong> <?= $e($f['prenom'] . ' ' . $f['nom']) ?></p>
+  <p><strong>Contrat :</strong> #<?= (int) $f['id_contrat'] ?><?= !empty($f['quartier']) ? ' · ' . $e($f['quartier']) : '' ?></p>
   <p><strong>Période :</strong> <?= $moisNoms[(int) $f['mois'] - 1] . ' ' . (int) $f['annee'] ?></p>
 
   <form class="formulaire" method="post" action="<?= BASE_URL ?>Paiement/add/<?= (int) $f['id'] ?>">

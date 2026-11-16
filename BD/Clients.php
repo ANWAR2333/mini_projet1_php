@@ -12,11 +12,10 @@ function bdClientCount(): int
 // Retourne les informations des clients sans leurs mots de passe.
 function bdClientAll(): array
 {
-    $sql = 'SELECT id, nom, prenom, adresse, telephone, email,
-                   num_compteur_eau, num_compteur_elec,
-                   index_initial_eau, index_initial_elec, date_creation
-            FROM client
-            ORDER BY nom, prenom';
+    $sql = 'SELECT c.id, c.nom, c.prenom, c.adresse, c.telephone, c.email, c.date_creation,
+                   (SELECT COUNT(*) FROM contrat ct WHERE ct.id_client = c.id) AS nb_contrats
+            FROM client c
+            ORDER BY c.nom, c.prenom';
 
     return getConnexion()->query($sql)->fetchAll();
 }
@@ -25,8 +24,7 @@ function bdClientAll(): array
 function bdClientOne(int $id): array
 {
     $sql = 'SELECT id, nom, prenom, adresse, telephone, email,
-                   num_compteur_eau, num_compteur_elec,
-                   index_initial_eau, index_initial_elec, date_creation
+                    date_creation
             FROM client
             WHERE id = ?';
     $st = getConnexion()->prepare($sql);
@@ -42,19 +40,13 @@ function bdClientInsert(
     ?string $adresse,
     ?string $telephone,
     string $email,
-    string $motDePasse,
-    ?string $numCompteurEau,
-    ?string $numCompteurElec,
-    float $indexInitialEau,
-    float $indexInitialElec
+    string $motDePasse
 ): int {
     $sql = 'INSERT INTO client
-                (nom, prenom, adresse, telephone, email, mot_de_passe,
-                 num_compteur_eau, num_compteur_elec, index_initial_eau, index_initial_elec)
-            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)';
+                (nom, prenom, adresse, telephone, email, mot_de_passe)
+            VALUES (?, ?, ?, ?, ?, ?)';
     $st = getConnexion()->prepare($sql);
     // Le mot de passe est haché avant d'être enregistré.
-    // Les compteurs facultatifs vides deviennent NULL pour respecter l'index unique.
     $st->execute([
         $nom,
         $prenom,
@@ -62,10 +54,6 @@ function bdClientInsert(
         $telephone,
         $email,
         password_hash($motDePasse, PASSWORD_DEFAULT),
-        $numCompteurEau === '' ? null : $numCompteurEau,
-        $numCompteurElec === '' ? null : $numCompteurElec,
-        $indexInitialEau,
-        $indexInitialElec,
     ]);
 
     return (int) getConnexion()->lastInsertId();
@@ -78,16 +66,10 @@ function bdClientUpdate(
     string $prenom,
     ?string $adresse,
     ?string $telephone,
-    string $email,
-    ?string $numCompteurEau,
-    ?string $numCompteurElec,
-    float $indexInitialEau,
-    float $indexInitialElec
+    string $email
 ): int {
     $sql = 'UPDATE client
-            SET nom = ?, prenom = ?, adresse = ?, telephone = ?, email = ?,
-                num_compteur_eau = ?, num_compteur_elec = ?,
-                index_initial_eau = ?, index_initial_elec = ?
+            SET nom = ?, prenom = ?, adresse = ?, telephone = ?, email = ?
             WHERE id = ?';
     $st = getConnexion()->prepare($sql);
     $st->execute([
@@ -96,10 +78,6 @@ function bdClientUpdate(
         $adresse,
         $telephone,
         $email,
-        $numCompteurEau === '' ? null : $numCompteurEau,
-        $numCompteurElec === '' ? null : $numCompteurElec,
-        $indexInitialEau,
-        $indexInitialElec,
         $id,
     ]);
 

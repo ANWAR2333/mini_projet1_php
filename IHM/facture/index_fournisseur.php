@@ -30,7 +30,7 @@ $filtres  = ['' => 'Toutes', 'impayee' => 'Impayées', 'payee' => 'Payées'];
   <div class="scroll-x">
     <table class="tableau">
       <thead>
-        <tr><th>N°</th><th>Client</th><th>Période</th><th>Total TTC</th><th>Statut</th><th>Actions</th></tr>
+        <tr><th>N°</th><th>Client</th><th>Contrat</th><th>Période</th><th>Total TTC</th><th>Statut</th><th>Actions</th></tr>
       </thead>
       <tbody>
       <?php foreach ($factures as $f):
@@ -38,6 +38,7 @@ $filtres  = ['' => 'Toutes', 'impayee' => 'Impayées', 'payee' => 'Payées'];
         <tr>
           <td><?= $e($f['numero']) ?></td>
           <td><?= $e($f['prenom'] . ' ' . $f['nom']) ?></td>
+          <td>#<?= (int) $f['id_contrat'] ?><?= $f['quartier'] ? ' · ' . $e($f['quartier']) : '' ?></td>
           <td><?= $moisNoms[(int) $m - 1] . ' ' . $e($a) ?></td>
           <td><?= $dh($f['montant_ttc']) ?></td>
           <td>

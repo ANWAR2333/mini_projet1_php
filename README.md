@@ -26,7 +26,7 @@ Référence : *Cahier des charges – Version alpha* + énoncé du TP + ajout du
 | Fournisseur | fournisseur@ecohouse.ma | `Four#2026` |
 | Clients | salma@gmail.com · youssef@gmail.com · nadia@gmail.com · khadija@gmail.com · mouad@gmail.com | `Client#2026` |
 
-Chaque client a un contrat, une consommation et une facture de **septembre 2026** (Salma a un 2e contrat commercial à Souk Jdid ; Mouad a un ancien contrat résilié) (la facture de Salma est payée, les autres impayées).
+Chaque client a au moins un contrat, une consommation et une facture de **septembre 2026** (Salma a aussi un contrat commercial à Souk Jdid ; Mouad a un ancien contrat résilié). La facture de Salma est payée, les autres sont impayées.
 Index de septembre, pour préparer la saisie d'octobre :
 
 | Client | Index eau | Index élec. | Octobre à saisir pour le test |
@@ -57,6 +57,7 @@ uploads/             photos des compteurs (jamais commitées)
 | `Auth/login` · `Auth/logout` | `authLogin()` · `authLogout()` | tous | Souraya |
 | `Auth/bientot/{page}` | `authBientot($page)` | connecté | Souraya |
 | `Client/all` · `one/{id}` · `add` · `update/{id}` · `delete/{id}` | `clientAll()` … | fournisseur | Anwar |
+| `Contrat/all` | `contratAll()` | client | Anwar |
 | `Consommation/add` · `Consommation/all` | `consoAdd()` · `consoAll()` | client | Amal |
 | `Facture/all` · `one/{id}` | `factureAll()` · `factureOne($id)` | client | Farah |
 | `Facture/admin` · `Facture/pdf/{id}` | `factureAdmin()` · `facturePdf($id)` | fournisseur · tous | Chaimaa |
@@ -104,7 +105,7 @@ bdContratTranches(int $idContrat): array            // ['eau' => [[borne|null, p
 - Tarification : le prix de la tranche s'applique à **toute** la consommation (pas de calcul progressif) : première tranche telle que consommation ≤ `borne_max`.
 - Saisie, facture et relevé annuel passent par le **contrat** (`id_contrat`). Une saisie par contrat et par mois. Un contrat **résilié** n'est jamais supprimé (statut + `date_fin`) : on ne peut plus saisir dessus, mais ses factures restent consultables.
 - Les montants `montant_eau` / `montant_elec` sont **enregistrés** dans la facture (plus de recalcul à l'affichage).
-- Migration additive : les anciennes colonnes de `client` (compteurs, index initiaux) et `id_client` des tables `consommation` / `facture` sont conservées pour que le code existant continue de marcher ; elles seront nettoyées à la fin. `id_client` doit toujours être égal à celui du contrat.
+- Les compteurs et index initiaux sont enregistrés uniquement sur `contrat`. La saisie mensuelle, les anomalies, la facture et le relevé annuel utilisent le même contrat ; un client peut donc saisir et être facturé séparément pour plusieurs contrats pendant le même mois.
 - **Relevé annuel** : l'agent dépose `depot/Consommation_Annuelle.txt` (`ID_Contrat;ID_Agent;ConsommationEau;ConsommationElect;Annee;Date_Saisie`, exemple dans `dev/Consommation_Annuelle.exemple.txt`). L'import est automatique (ouverture du tableau de bord ou de *Relevé annuel*, ou tâche planifiée `php dev/import_annuel.php`) ; le fichier est ensuite archivé dans `depot/traites/`.
 
 ### Tests sans navigateur

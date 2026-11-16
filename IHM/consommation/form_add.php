@@ -23,6 +23,28 @@ $compteurs = [
     <div class="message message-erreur"><?= $e($msg) ?></div>
 <?php endforeach; ?>
 
+<?php if (!$contrats): ?>
+    <div class="carte">
+        <p>Aucun contrat actif ne permet de saisir une consommation. Contactez votre fournisseur.</p>
+    </div>
+    <?php return; ?>
+<?php endif; ?>
+
+<form method="get" action="<?= $e($base) ?>Consommation/add" class="carte formulaire">
+    <label for="id_contrat">Contrat concerné</label>
+    <select id="id_contrat" name="id_contrat" onchange="this.form.submit()" required>
+        <?php foreach ($contrats as $c): ?>
+            <option value="<?= (int) $c['id'] ?>" <?= $idContrat === (int) $c['id'] ? 'selected' : '' ?>>
+                Contrat #<?= (int) $c['id'] ?> — <?= $e($c['quartier']) ?> (<?= $e($c['type_activite']) ?>)
+            </option>
+        <?php endforeach; ?>
+    </select>
+    <?php if ($contrat): ?>
+        <p>Compteur eau : <?= $e($contrat['num_compteur_eau'] ?: '—') ?> ·
+           Compteur électricité : <?= $e($contrat['num_compteur_elec'] ?: '—') ?></p>
+    <?php endif; ?>
+</form>
+
 <?php if (!$ouverte): ?>
     <div class="carte">
         <p>La saisie est ouverte du 18 au <?= (int) $dernierJour ?> <?= $e(mb_strtolower($nomMois, 'UTF-8')) ?>.
@@ -40,6 +62,7 @@ $compteurs = [
 <?php endif; ?>
 
 <form method="post" action="" enctype="multipart/form-data" id="form-saisie" novalidate>
+    <input type="hidden" name="id_contrat" value="<?= (int) $idContrat ?>">
     <div class="grille-2">
         <?php foreach ($compteurs as $cle => $c): ?>
             <div class="carte">
@@ -102,17 +125,16 @@ $compteurs = [
 // Estimation affichée à titre indicatif : le calcul qui compte est fait en PHP (R6, R7).
 (function () {
     var TAUX = <?= json_encode((float) $param['taux_tva']) ?>;
-    var TARIFS = {                       // [consommation maximale de la tranche, prix unitaire]
-        eau:  [[6, 2.37], [20, 7.39], [35, 10.98], [Infinity, 11.03]],
-        elec: [[100, 0.82], [150, 0.92], [Infinity, 1.10]]
-    };
+    var TARIFS = <?= json_encode($tranches, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES) ?>;
     var arrondi = function (x) { return Math.round(x * 100) / 100; };
     var fmt = function (x) { return x.toLocaleString('fr-FR', {minimumFractionDigits: 2, maximumFractionDigits: 2}); };
 
     function montant(conso, type) {
         if (conso <= 0) { return 0; }
         for (var i = 0; i < TARIFS[type].length; i++) {
-            if (conso <= TARIFS[type][i][0]) { return arrondi(conso * TARIFS[type][i][1]); }
+            if (TARIFS[type][i][0] === null || conso <= TARIFS[type][i][0]) {
+                return arrondi(conso * TARIFS[type][i][1]);
+            }
         }
         return 0;
     }

@@ -34,6 +34,9 @@ $fin      = date('t/m/Y', mktime(0, 0, 0, (int) $f['mois'], 1, (int) $f['annee']
     <p><strong>Période :</strong> <?= $debut ?> – <?= $fin ?></p>
     <p><strong>Client :</strong> <?= $e($f['prenom'] . ' ' . $f['nom']) ?></p>
     <p><strong>Adresse :</strong> <?= $e($f['adresse'] ?? '') ?></p>
+    <p><strong>Contrat :</strong> #<?= (int) $f['id_contrat'] ?><?= !empty($f['quartier']) ? ' · ' . $e($f['quartier']) : '' ?></p>
+    <p><strong>Compteur eau :</strong> <?= $e($f['num_compteur_eau'] ?: '—') ?></p>
+    <p><strong>Compteur électricité :</strong> <?= $e($f['num_compteur_elec'] ?: '—') ?></p>
   </section>
 
   <section class="carte">
@@ -68,7 +71,7 @@ $fin      = date('t/m/Y', mktime(0, 0, 0, (int) $f['mois'], 1, (int) $f['annee']
       <tr><td>Eau</td><td><?= $num($f['conso_eau']) ?> m³</td><td><?= $dh($f['montant_eau']) ?></td></tr>
       <tr><td>Électricité</td><td><?= $num($f['conso_elec']) ?> kWh</td><td><?= $dh($f['montant_elec']) ?></td></tr>
       <tr><td><strong>Montant HT</strong></td><td></td><td><strong><?= $dh($f['montant_ht']) ?></strong></td></tr>
-      <tr><td>TVA 18 %</td><td></td><td><?= $dh($f['tva']) ?></td></tr>
+      <tr><td>TVA</td><td></td><td><?= $dh($f['tva']) ?></td></tr>
       <tr><td><strong>Total TTC</strong></td><td></td><td><strong><?= $dh($f['montant_ttc']) ?></strong></td></tr>
     </tbody>
   </table>

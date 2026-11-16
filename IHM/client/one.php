@@ -10,22 +10,61 @@ $e = fn($valeur) => htmlspecialchars((string) $valeur, ENT_QUOTES, 'UTF-8');
   </div>
 </header>
 
-<!-- Détails personnels et informations des compteurs. -->
+<!-- Coordonnées et informations du compte client. -->
 <section class="carte">
   <div class="grille-2">
     <p><strong>Email :</strong> <?= $e($client['email']) ?></p>
     <p><strong>Téléphone :</strong> <?= $e($client['telephone'] ?: '—') ?></p>
     <p><strong>Adresse :</strong> <?= $e($client['adresse'] ?: '—') ?></p>
     <p><strong>Créé le :</strong> <?= $e($client['date_creation'] ?: '—') ?></p>
-    <p><strong>Compteur eau :</strong> <?= $e($client['num_compteur_eau'] ?: '—') ?></p>
-    <p><strong>Compteur électricité :</strong> <?= $e($client['num_compteur_elec'] ?: '—') ?></p>
-    <p><strong>Index initial eau :</strong> <?= $e($client['index_initial_eau']) ?> m³</p>
-    <p><strong>Index initial électricité :</strong> <?= $e($client['index_initial_elec']) ?> kWh</p>
   </div>
   <p>
     <a class="btn-principal" href="<?= BASE_URL ?>Client/update/<?= (int) $client['id'] ?>">Modifier</a>
     <a class="btn-secondaire" href="<?= BASE_URL ?>Client/all">Retour à la liste</a>
   </p>
+</section>
+
+<section class="carte">
+  <h2>Contrats</h2>
+  <p><a class="btn-principal" href="<?= BASE_URL ?>Contrat/add/<?= (int) $client['id'] ?>">Ajouter un contrat</a></p>
+  <?php if (!$contrats): ?>
+    <p>Aucun contrat pour ce client.</p>
+  <?php else: ?>
+    <div class="scroll-x">
+      <table class="tableau">
+        <thead>
+          <tr><th>#</th><th>Quartier</th><th>Type</th><th>Compteur eau</th><th>Compteur électricité</th><th>Début</th><th>Fin</th><th>Statut</th><th>Actions</th></tr>
+        </thead>
+        <tbody>
+          <?php foreach ($contrats as $contrat): ?>
+            <tr>
+              <td><?= (int) $contrat['id'] ?></td>
+              <td><?= $e($contrat['quartier']) ?></td>
+              <td><?= $e($contrat['type_activite']) ?></td>
+              <td><?= $e($contrat['num_compteur_eau'] ?: '—') ?></td>
+              <td><?= $e($contrat['num_compteur_elec'] ?: '—') ?></td>
+              <td><?= $e($contrat['date_debut']) ?></td>
+              <td><?= $e($contrat['date_fin'] ?: '—') ?></td>
+              <td><?= $contrat['statut'] === 'resilie' ? 'Résilié' : 'Actif' ?></td>
+              <td>
+                <div class="actions">
+                  <?php if ($contrat['statut'] === 'actif'): ?>
+                    <a href="<?= BASE_URL ?>Contrat/update/<?= (int) $contrat['id'] ?>" title="Modifier le contrat"><i data-lucide="pencil"></i></a>
+                  <?php endif; ?>
+                  <?php if ($contrat['statut'] === 'actif'): ?>
+                    <form method="post" action="<?= BASE_URL ?>Contrat/resilier/<?= (int) $contrat['id'] ?>"
+                          onsubmit="return confirm('Résilier ce contrat ?');">
+                      <button type="submit" title="Résilier le contrat"><i data-lucide="trash-2"></i></button>
+                    </form>
+                  <?php endif; ?>
+                </div>
+              </td>
+            </tr>
+          <?php endforeach; ?>
+        </tbody>
+      </table>
+    </div>
+  <?php endif; ?>
 </section>
 
 <!-- La suppression est envoyée en POST après confirmation. -->
