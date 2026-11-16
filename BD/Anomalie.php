@@ -1,5 +1,6 @@
 <?php
 
+// Insertion des anomalies
 /**
  * BD/Anomalie.php — Amal
  * Requêtes SQL des anomalies de saisie (détection côté client, traitement côté fournisseur).
@@ -16,6 +17,7 @@ function bdAnomalieInsert(int $idConso, string $service, string $type, float $in
     return (int) $pdo->lastInsertId();
 }
 
+// Selection des anomalies depuis la base de données selon la consommation
 function bdAnomalieByConso(int $idConso): array
 {
     $st = getConnexion()->prepare('SELECT * FROM anomalie WHERE id_consommation = ? ORDER BY id');
@@ -23,6 +25,7 @@ function bdAnomalieByConso(int $idConso): array
     return $st->fetchAll();
 }
 
+// Selection des anomalies depuis la base de données selon le client
 function bdAnomalieByClient(int $idClient): array
 {
     $st = getConnexion()->prepare(

@@ -21,7 +21,7 @@ function bdFactureInsert(string $numero, int $idClient, int $idConso, string $da
                     :id_contrat, :ht, :tva, :ttc, 'impayee')";
     $st = $pdo->prepare($sql);
     $st->execute([
-        ':numero' => $numero, ':id_client' => $idClient, ':id_conso' => $idConso,
+        ':numero' => $numero, ':id_client' => $idClient, ':id_contrat' => $idContrat, ':id_conso' => $idConso,
         ':date_facture' => $dateFacture, ':periode' => $periode,
         ':conso_eau' => $consoEau, ':conso_elec' => $consoElec,
         ':montant_eau' => $montantEau, ':montant_elec' => $montantElec,

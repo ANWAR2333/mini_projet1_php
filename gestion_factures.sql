@@ -569,10 +569,20 @@ INSERT INTO `contrat` (`id`,`id_client`,`id_quartier`,`num_compteur_eau`,`num_co
 (7,5,4,'EAU-0007','ELEC-0007',50.00,900.00,'2025-01-01','2026-06-30','resilie');
 
 -- Les saisies et factures de septembre passent chacune par leur contrat
-UPDATE `consommation` SET `id_contrat` = `id_client`;
-UPDATE `facture` SET `id_contrat` = `id_client`,
-  `montant_eau` = CASE `id` WHEN 1 THEN 103.46 WHEN 2 THEN 88.68 WHEN 3 THEN 59.12 WHEN 4 THEN 73.90 WHEN 5 THEN 241.56 END;
-UPDATE `facture` SET `montant_elec` = `montant_ht` - `montant_eau`;
+INSERT INTO `consommation` (`id`,`id_client`,`id_contrat`,`mois`,`annee`,`index_eau`,`index_elec`,`photo_eau`,`photo_elec`,`date_saisie`,`statut`) VALUES
+(1,1,1,9,2026,1245.00,8430.00,NULL,NULL,'2026-09-24 10:00:00','normale'),
+(2,2,2,9,2026,1250.00,6200.00,NULL,NULL,'2026-09-24 10:00:00','normale'),
+(3,3,3,9,2026,640.00,3100.00,NULL,NULL,'2026-09-24 10:00:00','normale'),
+(4,4,4,9,2026,410.00,5100.00,NULL,NULL,'2026-09-24 10:00:00','normale'),
+(5,5,5,9,2026,850.00,2300.00,NULL,NULL,'2026-09-24 10:00:00','normale');
+INSERT INTO `facture` (`id`,`numero`,`id_client`,`id_contrat`,`id_consommation`,`date_facture`,`periode`,`conso_eau`,`conso_elec`,`montant_eau`,`montant_elec`,`montant_ht`,`tva`,`montant_ttc`,`statut`) VALUES
+(1,'F-0926-0001',1,1,1,'2026-09-30','09/2026',14.00,110.00,103.46,101.20,204.66,36.84,241.50,'payee'),
+(2,'F-0926-0002',2,2,2,'2026-09-30','09/2026',12.00,130.00,88.68,119.60,208.28,37.49,245.77,'impayee'),
+(3,'F-0926-0003',3,3,3,'2026-09-30','09/2026',8.00,95.00,59.12,77.90,137.02,24.66,161.68,'impayee'),
+(4,'F-0926-0004',4,4,4,'2026-09-30','09/2026',10.00,140.00,73.90,128.80,202.70,36.49,239.19,'impayee'),
+(5,'F-0926-0005',5,5,5,'2026-09-30','09/2026',22.00,160.00,241.56,176.00,417.56,75.16,492.72,'impayee');
+INSERT INTO `paiement` (`id`,`id_facture`,`date_paiement`,`montant`,`mode`) VALUES
+(1,1,'2026-10-02',241.50,'especes');
 
 -- Un agent pour tester l'import du fichier annuel (mot de passe Client#2026, il ne se connecte pas)
 INSERT INTO `agent` (`id`,`nom`,`prenom`,`email`,`mot_de_passe`) VALUES

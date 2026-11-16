@@ -72,7 +72,7 @@ $fin      = date('t/m/Y', mktime(0, 0, 0, (int) $f['mois'], 1, (int) $f['annee']
       <tr><td>Eau</td><td><?= $num($f['conso_eau']) ?> m³</td><td><?= $dh($f['montant_eau']) ?></td></tr>
       <tr><td>Électricité</td><td><?= $num($f['conso_elec']) ?> kWh</td><td><?= $dh($f['montant_elec']) ?></td></tr>
       <tr><td><strong>Montant HT</strong></td><td></td><td><strong><?= $dh($f['montant_ht']) ?></strong></td></tr>
-      <tr><td>TVA 18 %</td><td></td><td><?= $dh($f['tva']) ?></td></tr>
+      <tr><td>TVA</td><td></td><td><?= $dh($f['tva']) ?></td></tr>
       <tr><td><strong>Total TTC</strong></td><td></td><td><strong><?= $dh($f['montant_ttc']) ?></strong></td></tr>
     </tbody>
   </table>

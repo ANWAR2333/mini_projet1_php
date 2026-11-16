@@ -42,7 +42,6 @@ function clientAdd(): void
 
         if (!$erreurs) {
             try {
-                // Les champs facultatifs vides sont enregistrés comme NULL.
                 bdClientInsert(
                     $donnees['nom'],
                     $donnees['prenom'],

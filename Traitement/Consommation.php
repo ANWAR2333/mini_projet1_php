@@ -169,7 +169,9 @@ function consoAdd(): void
     $old       = ['index_eau' => '', 'index_elec' => ''];
 
     if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-        if (!$ouverte) {
+        if (!$contrats) {
+            $erreurs[] = 'Aucun contrat actif ne permet de saisir une consommation.';
+        } elseif ($contrat && !$ouverte) {
             $erreurs[] = 'La saisie est fermée : elle est ouverte à partir du 18 de chaque mois.';
         } elseif ($dejaSaisi) {
             $erreurs[] = 'Vous avez déjà saisi votre consommation pour ce mois (contrat n°' . $idContrat . ')';
@@ -189,6 +191,10 @@ function consoAdd(): void
                 if ($e = consoPhotoErreur($_FILES['photo_' . $cle] ?? null, $nom)) {
                     $erreurs[] = $e;
                 }
+            }
+
+            if (!$erreurs && (!$tranches['eau'] || !$tranches['elec'])) {
+                $erreurs[] = 'Le barème de ce contrat est incomplet. Contactez le fournisseur.';
             }
 
             if (!$erreurs) {

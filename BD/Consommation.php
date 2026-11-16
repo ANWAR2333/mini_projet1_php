@@ -45,6 +45,7 @@ function bdConsoSqlCorrige(string $service, string $alias): string
               LIMIT 1) AS $alias";
 }
 
+
 /**
  * R3 — Dernière saisie valide du CONTRAT avant (mois, annee) ; sinon index initial du contrat.
  * Attention (Farah) : le 1er paramètre est l'id du CONTRAT, pas celui du client.
@@ -93,8 +94,13 @@ function bdConsoPrecedente(int $idContrat, int $mois, int $annee): array
 function bdConsoByContrat(int $idContrat): array
 {
     $sql = 'SELECT c.*, ' . bdConsoSqlCorrige('eau', 'eau_corrige') . ', '
-         . bdConsoSqlCorrige('electricite', 'elec_corrige') . '
+         . bdConsoSqlCorrige('electricite', 'elec_corrige') . ',
+                   q.nom AS quartier
             FROM consommation c
+            LEFT JOIN contrat ct ON ct.id = c.id_contrat
+            LEFT JOIN quartier q ON q.id = ct.id_quartier
+            WHERE c.id_client = ?
+            ORDER BY c.id_contrat ASC, c.annee ASC, c.mois ASC';
             WHERE c.id_contrat = ?
             ORDER BY c.annee ASC, c.mois ASC';
     $st = getConnexion()->prepare($sql);

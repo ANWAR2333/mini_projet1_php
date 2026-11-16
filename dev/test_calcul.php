@@ -13,9 +13,15 @@ $cas = [
     [15, 'eau', 110.85], [6, 'eau', 14.22], [7, 'eau', 51.73], [20, 'eau', 147.80], [35, 'eau', 384.30], [36, 'eau', 397.08],
     [0, 'eau', 0.00],
 ];
+$baremeCommercial = [
+    'eau' => [[10.0, 3.2], [30.0, 8.9], [60.0, 12.5], [null, 13.2]],
+    'elec' => [[200.0, 1.0], [400.0, 1.15], [null, 1.3]],
+];
+$cas[] = [8, 'eau', 25.60, $baremeCommercial];
 $ok = 0;
-foreach ($cas as [$c, $t, $att]) {
-    $r = calculerMontant($c, $t);
+foreach ($cas as $ligne) {
+    [$c, $t, $att] = $ligne;
+    $r = calculerMontant($c, $t, $ligne[3] ?? null);
     $bon = abs($r - $att) < 0.001;
     $ok += $bon;
     printf("%-4s %6s %-4s → %8.2f DH (attendu %8.2f)\n", $bon ? 'OK' : 'FAUX', $c, $t, $r, $att);

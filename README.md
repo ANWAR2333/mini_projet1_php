@@ -26,7 +26,7 @@ Référence : *Cahier des charges – Version alpha* + énoncé du TP + ajout du
 | Fournisseur | fournisseur@ecohouse.ma | `Four#2026` |
 | Clients | salma@gmail.com · youssef@gmail.com · nadia@gmail.com · khadija@gmail.com · mouad@gmail.com | `Client#2026` |
 
-Chaque client a un contrat, une consommation et une facture de **septembre 2026** (Salma a un 2e contrat commercial à Souk Jdid ; Mouad a un ancien contrat résilié) (la facture de Salma est payée, les autres impayées).
+Chaque client a au moins un contrat, une consommation et une facture de **septembre 2026** (Salma a aussi un contrat commercial à Souk Jdid ; Mouad a un ancien contrat résilié). La facture de Salma est payée, les autres sont impayées.
 Index de septembre, pour préparer la saisie d'octobre :
 
 | Client | Index eau | Index élec. | Octobre à saisir pour le test |
@@ -57,6 +57,7 @@ uploads/             photos des compteurs (jamais commitées)
 | `Auth/login` · `Auth/logout` | `authLogin()` · `authLogout()` | tous | Souraya |
 | `Auth/bientot/{page}` | `authBientot($page)` | connecté | Souraya |
 | `Client/all` · `one/{id}` · `add` · `update/{id}` · `delete/{id}` | `clientAll()` … | fournisseur | Anwar |
+| `Contrat/all` | `contratAll()` | client | Anwar |
 | `Consommation/add` · `Consommation/all` | `consoAdd()` · `consoAll()` | client | Amal |
 | `Facture/all` · `one/{id}` | `factureAll()` · `factureOne($id)` | client | Farah |
 | `Facture/admin` · `Facture/pdf/{id}` | `factureAdmin()` · `facturePdf($id)` | fournisseur · tous | Chaimaa |
